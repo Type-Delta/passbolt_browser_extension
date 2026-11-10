@@ -13,6 +13,8 @@
  */
 import SsoKitClientPartEntity from "../../model/entity/sso/ssoKitClientPartEntity";
 
+import SavedAccountRegistry from "../account/savedAccountRegistry";
+
 const DB_VERSION = 1;
 const DB_NAME = "sso_kit_db";
 const SSO_KEYS_OBECT_STORE = "sso_kit";
@@ -69,9 +71,10 @@ class SsoDataStorage {
    * Remove all existing data
    * @return {Promise<void>}
    */
-  static async flush() {
-    const dbHandler = await this.getDbHandler();
+  static async flush(accountId) {
+    const dbHandler = await this.getDbHandler(accountId);
     await this.clearData(dbHandler);
+    dbHandler.close();
   }
 
   /**
@@ -80,9 +83,12 @@ class SsoDataStorage {
    * @returns {Promise<IDBDatabase>}
    * @private
    */
-  static async getDbHandler() {
+  static async getDbHandler(accountId) {
+    const state = await SavedAccountRegistry.read();
+    accountId = accountId || state.active_account_id;
+    const databaseName = !accountId || accountId === state.legacy_account_id ? DB_NAME : `${DB_NAME}-${accountId}`;
     return new Promise((resolve, reject) => {
-      const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
+      const openRequest = indexedDB.open(databaseName, DB_VERSION);
 
       openRequest.onupgradeneeded = (e) => {
         const db = e.target.result;

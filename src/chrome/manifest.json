@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
-  "name": "__MSG_appName__",
-  "short_name": "passbolt",
+  "name": "Passbolt Multi-Account Fork",
+  "short_name": "Passbolt MA",
   "version": "5.17.1",
-  "description": "__MSG_appDescription__",
+  "description": "Passbolt multi-account fork for safely switching between self-hosted Passbolt accounts.",
   "default_locale": "en",
   "externally_connectable": {},
   "icons": {
@@ -16,12 +16,14 @@
   },
   "browser_action": {
     "default_icon": "webAccessibleResources/img/icons/icon-32.png",
-    "theme_icons": [{
+    "theme_icons": [
+      {
         "light": "webAccessibleResources/img/icons/icon-32.png",
         "dark": "webAccessibleResources/img/icons/icon-32.png",
         "size": 32
-    }],
-    "default_title": "Passbolt Quickaccess"
+      }
+    ],
+    "default_title": "Passbolt Multi-Account Quick Access"
   },
   "commands": {
     "passbolt-open": {
@@ -47,5 +49,7 @@
   "web_accessible_resources": [
     "webAccessibleResources/*"
   ],
-  "content_security_policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http: ; font-src 'self'; connect-src 'self' https: http: ; form-action 'self' https: ; frame-src 'self' ; frame-ancestors 'self' https: http: ; worker-src 'self' ; base-uri 'none' ;"
+  "content_security_policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http: ; font-src 'self'; connect-src 'self' https: http: ; form-action 'self' https: ; frame-src 'self' ; frame-ancestors 'self' https: http: ; worker-src 'self' ; base-uri 'none' ;",
+  "homepage_url": "https://github.com/Type-Delta/passbolt_browser_extension",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtmOEZuNvnRY9fdunZ+g8Rl5Ga+g9YAWUG12aff2uk9UFiiZU9Nk0Lq0D/R7GaKsiJXDWkIKBQCK0lnBKxeshyHxiboYrvTerkbbB2zMRz+kg6pQGHjS7efV+ybM6rqslJTEeALDy95bnPm4zjj2l8ifHo5FHzgTH1ZprlcPhqP4IX0jl+doqiYNeWzEQ9JDcXjwMJL7NNi/c9pRZl9oAtMVeQqiqsfOjTSttmeRnZr64hi2D+GUFlAoqnERekzuVwkgLu9o/27vt+R5DzeW800z3uekRnC/sNMwjhlCA9J8qDZ39Q7UdZ+t42fWNFVIFGO4lCYS71GcAhKE8aPU95QIDAQAB"
 }

@@ -11,13 +11,14 @@
  * @link          https://www.passbolt.com Passbolt(tm)
  * @since         2.11.0
  */
-import MfaAuthenticationRequiredError from "../error/mfaAuthenticationRequiredError";
 import NotFoundError from "../error/notFoundError";
 import PassboltBadResponseError from "../error/passboltBadResponseError";
 import AbstractService from "passbolt-styleguide/src/shared/services/api/abstract/abstractService";
 
 const AUTH_RESOURCE_NAME = "/auth";
 export const MFA_VERIFY_ERROR_REGEXP = /mfa\/verify\/error\.json$/;
+
+import { assertAuthenticatedAccount, assertMfaReadiness } from "./account/accountApiGuard";
 
 class AuthenticationStatusService extends AbstractService {
   /**
@@ -45,7 +46,14 @@ class AuthenticationStatusService extends AbstractService {
         "content-type": "application/json",
       },
     };
-    const response = await this.apiClient.sendRequest("GET", url, null, fetchOptions);
+    let response;
+    try {
+      response = await this.apiClient.sendRequest("GET", url, null, fetchOptions);
+    } catch (error) {
+      // Fetch hides the stock 302 with redirect:error. Only verified readiness can establish MFA.
+      await assertMfaReadiness(this.apiClient.options);
+      throw error;
+    }
 
     let responseJson;
     try {
@@ -58,13 +66,16 @@ class AuthenticationStatusService extends AbstractService {
     }
 
     if (response.ok) {
+      if (this.apiClient.options.accountContext?.requireIdentity) {
+        await assertAuthenticatedAccount(this.apiClient.options, this.apiClient.options.accountContext.account);
+      }
       return true;
     }
 
     // MFA required. @note: on safari response.url is an empty string in that case
-    if (MFA_VERIFY_ERROR_REGEXP.test(responseJson.header.url) || MFA_VERIFY_ERROR_REGEXP.test(response.url)) {
-      //Retrieve the message error details from json
-      throw new MfaAuthenticationRequiredError(null, responseJson.body);
+    if (MFA_VERIFY_ERROR_REGEXP.test(responseJson.header?.url) || MFA_VERIFY_ERROR_REGEXP.test(response.url)) {
+      await assertMfaReadiness(this.apiClient.options);
+      throw new PassboltBadResponseError();
     } else if (response.status === 404) {
       // Entry point not found.
       throw new NotFoundError();

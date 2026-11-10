@@ -19,6 +19,7 @@ import { PortEvents } from "../event/portEvents";
 import ParseWebIntegrationUrlService from "../service/webIntegration/parseWebIntegrationUrlService";
 import GetActiveAccountService from "../service/account/getActiveAccountService";
 import BuildApiClientOptionsService from "../service/account/buildApiClientOptionsService";
+import SavedAccountRegistry from "../service/account/savedAccountRegistry";
 
 class WebIntegration extends Pagemod {
   /**
@@ -95,6 +96,19 @@ class WebIntegration extends Pagemod {
   async assertUrlAttachConstraint(frameDetails) {
     try {
       await GetActiveAccountService.get();
+      const page = new URL(frameDetails.url);
+      const state = await SavedAccountRegistry.read();
+      if (
+        state.accounts.some((dto) => {
+          const base = new URL(SavedAccountRegistry.canonicalDomain(dto.domain));
+          return (
+            page.origin === base.origin &&
+            (page.pathname === base.pathname || page.pathname.startsWith(`${base.pathname.replace(/\/$/, "")}/`))
+          );
+        })
+      ) {
+        return false;
+      }
       return ParseWebIntegrationUrlService.test(frameDetails.url);
     } catch (error) {
       console.log(error);

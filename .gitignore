@@ -104,3 +104,8 @@ playground.xcworkspace
 .build/
 
 # End of https://www.toptal.com/developers/gitignore/api/swift
+# Generated pinned styleguide tarball
+/vendor
+
+# Playwright CLI page state
+.playwright-cli/

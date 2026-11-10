@@ -4,8 +4,11 @@
  * @copyright (c) 2017 Passbolt SARL
  * @licence GNU Affero General Public License http://www.gnu.org/licenses/agpl-3.0.en.html
  */
-import Log from "../model/log";
 import { v4 as uuidv4 } from "uuid";
+
+import PortManager from "./port/portManager";
+import AccountContext from "../service/account/accountContext";
+import SavedAccountRegistry from "../service/account/savedAccountRegistry";
 
 class Port {
   /**
@@ -16,6 +19,7 @@ class Port {
     if (!port) {
       throw Error("A port is required.");
     }
+    this.accountGeneration = AccountContext.generation;
     this._listeners = {};
     this._disconnectListeners = {};
     this._port = port;
@@ -52,7 +56,59 @@ class Port {
       for (let i = 0; i < listeners.length; i++) {
         const listener = listeners[i];
         const args = Array.prototype.slice.call(msg, 1);
-        listener.callback.apply(this, args);
+        if (eventName.startsWith("passbolt.") && !eventName.startsWith("passbolt.accounts.")) {
+          AccountContext.run(this.accountGeneration, async () => {
+            const { pending_account: pending } = await browser.storage.session.get("pending_account");
+            const bootstrap = [
+              "passbolt.account.get",
+              "passbolt.config.read",
+              "passbolt.config.readAll",
+              "passbolt.addon.is-configured",
+              "passbolt.addon.get-domain",
+              "passbolt.addon.get-version",
+              "passbolt.addon.get-url",
+            ];
+            if (pending && pending.expires > Date.now() && !bootstrap.includes(eventName)) {
+              const state = await SavedAccountRegistry.read();
+              const active = state.accounts.find(
+                (dto) => SavedAccountRegistry.account(dto).id === state.active_account_id,
+              );
+              if (
+                active &&
+                SavedAccountRegistry.canonicalDomain(active.domain) ===
+                  SavedAccountRegistry.canonicalDomain(pending.account.domain)
+              ) {
+                const savedMfaHandoff =
+                  pending.saved &&
+                  [
+                    "passbolt.auth.is-mfa-required",
+                    "passbolt.tabs.open-trusted-domain",
+                    "passbolt.auth.post-login-redirect",
+                  ].includes(eventName) &&
+                  SavedAccountRegistry.account(pending.account).id === state.active_account_id &&
+                  (eventName !== "passbolt.auth.post-login-redirect" ||
+                    (await PortManager.isAccountManagementSender("Auth", this._port.sender, this._port.name)));
+                if (!savedMfaHandoff) {
+                  throw new Error("Complete or cancel the pending account sign-in first.");
+                }
+              }
+            }
+            return listener.callback.apply(this, args);
+          }).catch(async (error) => {
+            // An explicit rejection must reach the old requester even after generation invalidation.
+            try {
+              await this.emitQuiet(args[0], "ERROR", { name: error.name, message: error.message });
+            } catch {
+              this.disconnect();
+              return;
+            }
+            if (this.accountGeneration !== AccountContext.generation) {
+              this.disconnect();
+            }
+          });
+        } else {
+          listener.callback.apply(this, args);
+        }
         if (listener.once) {
           this._listeners[eventName].splice(i, 1);
           // delete the listener if empty array
@@ -105,13 +161,26 @@ class Port {
     this._addListener(name, callback, true);
   }
 
+  /** Remove only this callback, including when its request settles during dispatch. */
+  removeListener(name, callback) {
+    const listeners = this._listeners[name]?.filter((listener) => listener.callback !== callback);
+    if (listeners?.length) {
+      this._listeners[name] = listeners;
+    } else {
+      delete this._listeners[name];
+    }
+  }
+
   /**
    * Emit a message to the content code
    * @param requestArgs the arguments
    */
   emit(...requestArgs) {
+    if (this.accountGeneration !== AccountContext.generation) {
+      return;
+    }
     const message = JSON.stringify(requestArgs);
-    Log.write({ level: "debug", message: `Port emit @ message: ${message}` });
+    // Port payloads can contain passphrases and imported private keys. Never log them.
     this._port.postMessage(message);
   }
 
@@ -131,6 +200,11 @@ class Port {
    * @return Promise
    */
   request(message, ...args) {
+    try {
+      AccountContext.assert(this.accountGeneration);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     // Generate a request id that will be used by the addon to answer this request.
     const requestId = uuidv4();
     // Add the requestId to the request parameters.
@@ -138,6 +212,12 @@ class Port {
 
     // The promise that is return when you call passbolt.request.
     return new Promise((resolve, reject) => {
+      const cancel = () => {
+        delete this._listeners[requestId];
+        delete this._disconnectListeners[requestId];
+        AccountContext.interactiveRequests.delete(cancel);
+        reject(new Error("The account request was canceled. Reopen the vault."));
+      };
       /*
        * Observe when the request has been completed.
        * Or if a progress notification is sent.
@@ -149,11 +229,17 @@ class Port {
           reject.apply(null, callbackArgs);
         }
         delete this._disconnectListeners[requestId];
+        AccountContext.interactiveRequests.delete(cancel);
       });
       // Add reject to the disconnect listener
-      this._disconnectListeners[requestId] = reject;
+      this._disconnectListeners[requestId] = cancel;
+      AccountContext.interactiveRequests.add(cancel);
       // Emit the message to the addon-code.
-      this.emit.apply(this, requestArgs);
+      try {
+        this.emit.apply(this, requestArgs);
+      } catch {
+        cancel();
+      }
     });
   }
 

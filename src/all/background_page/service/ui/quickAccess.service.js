@@ -1,3 +1,5 @@
+import AccountContext from "../account/accountContext";
+import SavedAccountRegistry from "../account/savedAccountRegistry";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) Passbolt SARL (https://www.passbolt.com)
@@ -29,25 +31,36 @@ const QUICKACCESS_WINDOW_WIDTH = 380;
  * @return {Promise<windows.Window>}
  */
 async function openInDetachedMode(queryParameters = []) {
-  // Generate the worker id
-  const workerId = uuidv4();
+  const generation = AccountContext.generation;
+  return AccountContext.run(generation, async () => {
+    const state = await SavedAccountRegistry.read();
+    AccountContext.assert(generation);
+    // Generate the worker id
+    const workerId = uuidv4();
 
-  const detachedQuickAccessqueryParameters = [...queryParameters, { name: "uiMode", value: "detached" }];
-  const url = await buildDetachedQuickaccessUrl(detachedQuickAccessqueryParameters, workerId);
-  const { top, left } = await buildDetachedQuickaccessPosition();
+    const detachedQuickAccessqueryParameters = [...queryParameters, { name: "uiMode", value: "detached" }];
+    const url = await buildDetachedQuickaccessUrl(detachedQuickAccessqueryParameters, workerId);
+    const { top, left } = await buildDetachedQuickaccessPosition();
 
-  const type = "popup";
-  const width = QUICKACCESS_WINDOW_WIDTH;
-  const height = QUICKACCESS_WINDOW_HEIGHT;
-  const windowCreateData = { url: url, type: type, left: left, top: top, width: width, height: height };
-  const quickAccessWindow = await browser.windows.create(windowCreateData);
+    const type = "popup";
+    const width = QUICKACCESS_WINDOW_WIDTH;
+    const height = QUICKACCESS_WINDOW_HEIGHT;
+    const windowCreateData = { url: url, type: type, left: left, top: top, width: width, height: height };
+    const quickAccessWindow = await browser.windows.create(windowCreateData);
 
-  // Register the worker in the session storage
-  await addWorkerQuickAccess(workerId, quickAccessWindow.tabs[0].id);
+    // Register the worker in the session storage
+    try {
+      AccountContext.assert(generation);
+      await addWorkerQuickAccess(workerId, quickAccessWindow.tabs[0].id, state.active_account_id);
+    } catch (error) {
+      await browser.tabs.remove(quickAccessWindow.tabs[0].id);
+      throw error;
+    }
 
-  // On firefox 90, with dual screen, the window is not positioned properly and it requires to be moved manually.
-  browser.windows.update(quickAccessWindow.id, { left: left, top: top });
-  return quickAccessWindow;
+    // On firefox 90, with dual screen, the window is not positioned properly and it requires to be moved manually.
+    browser.windows.update(quickAccessWindow.id, { left: left, top: top });
+    return quickAccessWindow;
+  });
 }
 
 /**
@@ -56,10 +69,11 @@ async function openInDetachedMode(queryParameters = []) {
  * @param {number} tabId The tab id
  * @return {Promise<void>}
  */
-async function addWorkerQuickAccess(workerId, tabId) {
+async function addWorkerQuickAccess(workerId, tabId, accountId) {
   const worker = {
     id: workerId,
     name: "QuickAccess",
+    account_id: accountId,
     tabId: tabId,
     frameId: 0,
     status: WorkerEntity.STATUS_WAITING_CONNECTION,

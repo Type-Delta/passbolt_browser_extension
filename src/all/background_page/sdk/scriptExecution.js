@@ -72,7 +72,7 @@ class ScriptExecution {
       return;
     }
 
-    browser.scripting.executeScript({
+    return browser.scripting.executeScript({
       files: fileArray,
       target: {
         tabId: this.tabId,
@@ -92,7 +92,7 @@ class ScriptExecution {
       return;
     }
 
-    browser.scripting.insertCSS({
+    return browser.scripting.insertCSS({
       files: fileArray,
       target: {
         tabId: this.tabId,
@@ -106,7 +106,7 @@ class ScriptExecution {
    * @param {string} portName
    */
   injectPortname(portName) {
-    browser.scripting.executeScript({
+    return browser.scripting.executeScript({
       func: globalSetPortname,
       args: [portName],
       target: {

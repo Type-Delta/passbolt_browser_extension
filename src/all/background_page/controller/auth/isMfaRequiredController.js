@@ -1,3 +1,5 @@
+import PendingAccountSessionStorage from "../../service/account/pendingAccountSessionStorage";
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) Passbolt SA (https://www.passbolt.com)
@@ -23,6 +25,7 @@ class IsMfaRequiredController {
    * @param {AccountEntity} account
    */
   constructor(worker, requestId, apiClientOptions, account) {
+    this.account = account;
     this.worker = worker;
     this.requestId = requestId;
     this.findAndUpdateActiveSessionLocalStorageService = new FindAndUpdateActiveSessionLocalStorageService(
@@ -48,6 +51,10 @@ class IsMfaRequiredController {
    * @returns {Promise<boolean>}
    */
   async exec() {
+    const pending = await PendingAccountSessionStorage.read();
+    if (pending?.saved && SavedAccountRegistry.account(pending.account).id === this.account.id) {
+      return true;
+    }
     const activeSession = await this.findAndUpdateActiveSessionLocalStorageService.findAndUpdateAuthenticationStatus();
     return activeSession.isMfaRequired;
   }

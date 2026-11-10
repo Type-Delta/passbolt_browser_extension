@@ -76,7 +76,9 @@ describe("PagemodManager", () => {
         url: "https://passbolt.dev/auth/login",
       };
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
       // process
       await PagemodManager.exec(details);
@@ -94,7 +96,9 @@ describe("PagemodManager", () => {
         url: "https://passbolt.dev/app",
       };
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => new AccountEntity(defaultAccountDto()));
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest
         .spyOn(FindAndUpdateActiveSessionLocalStorageService.prototype, "findAndUpdateAuthenticationStatus")
         .mockImplementation(async () => new UserActiveSessionEntity(defaultUserActiveSessionDto()));
@@ -115,7 +119,9 @@ describe("PagemodManager", () => {
         url: "https://test.dev/auth/login",
       };
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
       // process
       await PagemodManager.exec(details);
@@ -133,7 +139,9 @@ describe("PagemodManager", () => {
         url: "https://www.passbolt.com",
       };
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
       // process
       await PagemodManager.exec(details);
@@ -163,6 +171,7 @@ describe("PagemodManager", () => {
       // data mocked
       const port = {
         name: "test",
+        accountGeneration: 0,
       };
       // process
       await PagemodManager.attachEventToPort(port, "RecoverBootstrap");
@@ -176,6 +185,7 @@ describe("PagemodManager", () => {
       // data mocked
       const port = {
         name: "test",
+        accountGeneration: 0,
       };
       // process
       await PagemodManager.attachEventToPort(port, "TEST");
@@ -188,7 +198,9 @@ describe("PagemodManager", () => {
     it("Should refresh tab if pagemod must refresh tab url", async () => {
       expect.assertions(7);
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
       // expectations
       expect(await PagemodManager.hasPagemodMatchUrlToReload("https://passbolt.dev")).toBeTruthy();

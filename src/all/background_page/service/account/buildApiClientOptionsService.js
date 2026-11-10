@@ -13,6 +13,9 @@
  */
 import { ApiClientOptions } from "passbolt-styleguide/src/shared/lib/apiClient/apiClientOptions";
 
+import AccountContext from "./accountContext";
+import "./accountApiGuard";
+
 class BuildApiClientOptionsService {
   /**
    * Build Api client options based on an account.
@@ -20,7 +23,13 @@ class BuildApiClientOptionsService {
    * @returns {ApiClientOptions}
    */
   static buildFromAccount(account) {
-    return this.buildFromDomain(account.domain);
+    const options = this.buildFromDomain(account.domain);
+    options.accountContext = {
+      account,
+      generation: AccountContext.generation,
+      requireIdentity: account.type === "Account",
+    };
+    return options;
   }
 
   /**

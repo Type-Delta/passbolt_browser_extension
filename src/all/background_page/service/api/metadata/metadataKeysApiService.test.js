@@ -13,7 +13,7 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -42,7 +42,7 @@ describe("MetadataKeysApiService", () => {
       expect.assertions(2);
 
       const apiMetadataKeysCollection = [defaultMetadataKeyDto()];
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponse(apiMetadataKeysCollection));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => mockApiResponse(apiMetadataKeysCollection));
 
       const service = new MetadataKeysApiService(apiClientOptions, account);
       const resultDto = await service.findAll();
@@ -53,7 +53,9 @@ describe("MetadataKeysApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new MetadataKeysApiService(apiClientOptions);
 
@@ -62,7 +64,7 @@ describe("MetadataKeysApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -79,7 +81,7 @@ describe("MetadataKeysApiService", () => {
       const dto = defaultMetadataKeyDto({}, { withMetadataPrivateKeys: true });
       const metadataKey = new MetadataKeyEntity(dto);
       let reqPayload;
-      fetch.doMockOnceIf(/metadata\/keys/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, async (req) => {
         expect(req.method).toEqual("POST");
         reqPayload = await req.json();
         return mockApiResponse(defaultMetadataKeyDto(reqPayload));
@@ -107,7 +109,7 @@ describe("MetadataKeysApiService", () => {
     it("should delete the metadata key with the given id from the API", async () => {
       expect.assertions(2);
       const expectedId = uuidv4();
-      fetch.doMockOnceIf(new RegExp(`/metadata/keys/${expectedId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/metadata/keys/${expectedId}\\.json`), async (req) => {
         expect(req.method).toEqual("DELETE");
         return mockApiResponse({});
       });
@@ -128,7 +130,9 @@ describe("MetadataKeysApiService", () => {
       expect.assertions(2);
 
       const expectedId = uuidv4();
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponseError(500, "Something went wrong!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () =>
+        mockApiResponseError(500, "Something went wrong!"),
+      );
 
       const service = new MetadataKeysApiService(apiClientOptions);
       const promise = service.delete(expectedId);
@@ -140,7 +144,7 @@ describe("MetadataKeysApiService", () => {
       expect.assertions(2);
 
       const expectedId = uuidv4();
-      fetch.doMockOnceIf(/metadata\/keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -168,7 +172,7 @@ describe("MetadataKeysApiService", () => {
         armored_key: publicKeyRevoked.armor(),
         expired: new Date().toISOString(),
       });
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponse({}));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => mockApiResponse({}));
 
       const service = new MetadataKeysApiService(apiClientOptions);
       await expect(service.update(expectedId, metadataKeyUpdated)).resolves.not.toThrow();
@@ -196,7 +200,9 @@ describe("MetadataKeysApiService", () => {
       const expectedId = uuidv4();
       const metadataKeyDto = defaultMetadataKeyDto({ id: expectedId });
       const metadataKey = new MetadataKeyEntity(metadataKeyDto);
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponseError(500, "Something went wrong!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () =>
+        mockApiResponseError(500, "Something went wrong!"),
+      );
 
       const service = new MetadataKeysApiService(apiClientOptions);
       const promise = service.update(expectedId, metadataKey);
@@ -210,7 +216,7 @@ describe("MetadataKeysApiService", () => {
       const expectedId = uuidv4();
       const metadataKeyDto = defaultMetadataKeyDto({ id: expectedId });
       const metadataKey = new MetadataKeyEntity(metadataKeyDto);
-      fetch.doMockOnceIf(/metadata\/keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => {
         throw new Error("Service unavailable");
       });
 

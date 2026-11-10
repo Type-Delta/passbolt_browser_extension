@@ -13,7 +13,7 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import FavoriteApiService from "./favoriteApiService";
@@ -42,10 +42,14 @@ describe("FavoriteApiService", () => {
 
       const foreignModel = "Resource";
       const foreignId = uuidv4();
-      fetch.doMockOnceIf(new RegExp(`/${foreignModel.toLowerCase()}/${foreignId}`), async (req) => {
-        expect(req.method).toEqual("POST");
-        return mockApiResponse(defaultFavoriteDto());
-      });
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/${foreignModel.toLowerCase()}/${foreignId}`),
+        async (req) => {
+          expect(req.method).toEqual("POST");
+          return mockApiResponse(defaultFavoriteDto());
+        },
+      );
 
       const resultDto = await service.create(foreignModel, foreignId);
       expect(resultDto).toEqual(
@@ -95,7 +99,7 @@ describe("FavoriteApiService", () => {
       expect.assertions(2);
 
       const foreignId = uuidv4();
-      fetch.doMockOnceIf(new RegExp(`/${foreignId}`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/${foreignId}`), async (req) => {
         expect(req.method).toEqual("DELETE");
         return mockApiResponse(defaultFavoriteDto());
       });

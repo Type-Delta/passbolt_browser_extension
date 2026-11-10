@@ -14,7 +14,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -36,7 +36,7 @@ describe("MoveService", () => {
       const folderId = uuidv4();
       const destinationFolderId = uuidv4();
 
-      fetch.doMockOnceIf(new RegExp(`/move/folder/${folderId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/move/folder/${folderId}\\.json`), async (req) => {
         expect(req.method).toEqual("PUT");
         const body = await req.json();
         expect(body).toEqual({ folder_parent_id: destinationFolderId });
@@ -66,7 +66,7 @@ describe("MoveService", () => {
       const resourceId = uuidv4();
       const destinationFolderId = uuidv4();
 
-      fetch.doMockOnceIf(new RegExp(`/move/resource/${resourceId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/move/resource/${resourceId}\\.json`), async (req) => {
         expect(req.method).toEqual("PUT");
         const body = await req.json();
         expect(body).toEqual({ folder_parent_id: destinationFolderId });

@@ -14,6 +14,8 @@
 import PortManager from "../../sdk/port/portManager";
 import PagemodManager from "../../pagemod/pagemodManager";
 
+import SavedAccountsService from "../account/savedAccountsService";
+
 class WebNavigationService {
   /**
    * Execute the navigation service process
@@ -22,6 +24,9 @@ class WebNavigationService {
    */
   static async exec(frameDetails) {
     if (frameDetails.frameId !== 0) {
+      return;
+    }
+    if (await SavedAccountsService.onPendingNavigation(frameDetails)) {
       return;
     }
     // Remove port and worker in session storage if the user navigate

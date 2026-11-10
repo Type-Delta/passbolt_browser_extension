@@ -20,7 +20,11 @@ import {
   defaultUserPassphrasePoliciesDto,
   userPassphrasePoliciesDtoFromApi,
 } from "passbolt-styleguide/src/shared/models/entity/userPassphrasePolicies/userPassphrasePoliciesEntity.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import UserPassphrasePoliciesService from "./userPassphrasePoliciesService";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
@@ -40,7 +44,9 @@ describe("UserPassphrasePolicies service", () => {
     it("should return the dto served by the API", async () => {
       expect.assertions(1);
       const expectedDto = defaultUserPassphrasePoliciesDto();
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const service = new UserPassphrasePoliciesService(apiClientOptions);
       const resultDto = await service.find();
@@ -50,7 +56,7 @@ describe("UserPassphrasePolicies service", () => {
 
     it("should throw an error if the API returns an error response", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
         mockApiResponseError(500, "Something went wrong!"),
       );
 
@@ -64,7 +70,7 @@ describe("UserPassphrasePolicies service", () => {
 
     it("should throw an error if something happens on the API", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 
@@ -87,7 +93,7 @@ describe("UserPassphrasePolicies service", () => {
 
       const expectedDto = userPassphrasePoliciesDtoFromApi(dataToRegister);
 
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, async (request) => {
         const body = JSON.parse(await request.text());
         expect(body).toStrictEqual(dataToRegister);
         return mockApiResponse(expectedDto);
@@ -102,7 +108,7 @@ describe("UserPassphrasePolicies service", () => {
     it("Should throw an error if an error happens on the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
         mockApiResponseError(500, "Something wrong happened!"),
       );
 
@@ -117,7 +123,7 @@ describe("UserPassphrasePolicies service", () => {
     it("Should throw an error if an error happens when requesting the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
         throw new Error("Something wrong happened");
       });
 

@@ -66,8 +66,14 @@ class GeneratePortIdController {
     }
 
     const tab = this.worker.tab;
+    const parentId = this.worker.port?._port?.name;
+    const parent = parentId ? await WorkersSessionStorage.getWorkerById(parentId) : null;
+    if (!parent || parent.name !== this.worker.name || parent.tabId !== tab.id) {
+      throw new Error("The originating worker is no longer available.");
+    }
     const worker = {
       id: uuidv4(),
+      account_id: parent.account_id || null,
       name: applicationName,
       tabId: tab.id,
       frameId: null,

@@ -16,7 +16,11 @@ import { enableFetchMocks } from "jest-fetch-mock";
 import AccountEntity from "../entity/account/accountEntity";
 import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
 import { defaultAccountDto } from "../entity/account/accountEntity.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import UserPassphrasePoliciesModel from "./userPassphrasePoliciesModel";
 import UserPassphrasePoliciesEntity from "passbolt-styleguide/src/shared/models/entity/userPassphrasePolicies/userPassphrasePoliciesEntity";
 import {
@@ -45,7 +49,9 @@ describe("UserPassphrasePolicies model", () => {
         entropy_minimum: 112,
       });
       const expectedEntity = new UserPassphrasePoliciesEntity(expectedDto);
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const model = new UserPassphrasePoliciesModel(apiClientOptions);
       const result = await model.findOrDefault();
@@ -56,7 +62,7 @@ describe("UserPassphrasePolicies model", () => {
     it("should return a default entity if the API returns an HTTP error", async () => {
       expect.assertions(1);
       const expectedEntity = UserPassphrasePoliciesEntity.createFromDefault();
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
         mockApiResponseError(404, "Endpoint is not existing"),
       );
 
@@ -69,7 +75,7 @@ describe("UserPassphrasePolicies model", () => {
     it("should return a default entity if something goes wrong on the API", async () => {
       expect.assertions(1);
       const expectedEntity = UserPassphrasePoliciesEntity.createFromDefault();
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 
@@ -93,7 +99,7 @@ describe("UserPassphrasePolicies model", () => {
       const expectedDto = userPassphrasePoliciesDtoFromApi(baseData);
       const expectedEntity = new UserPassphrasePoliciesEntity(expectedDto);
 
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, async (request) => {
         const body = JSON.parse(await request.text());
         expect(body).toStrictEqual(dtoToSave);
         return mockApiResponse(expectedDto);
@@ -116,7 +122,7 @@ describe("UserPassphrasePolicies model", () => {
 
     it("should throw an Error if the API returns an HTTP error", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
         mockApiResponseError(500, "Endpoint is not existing"),
       );
 
@@ -131,7 +137,7 @@ describe("UserPassphrasePolicies model", () => {
 
     it("should throw an Error if something goes wrong when request the API", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 

@@ -14,6 +14,8 @@
 import AuthVerifyServerKeyService from "../../service/api/auth/authVerifyServerKeyService";
 import Keyring from "../../model/keyring";
 
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
+
 class ReplaceServerKeyController {
   /**
    * AuthVerifyServerKeyController Constructor
@@ -53,6 +55,8 @@ class ReplaceServerKeyController {
     const keyring = new Keyring();
     const serverKeyDto = await this.authVerifyServerKeyService.getServerKey();
     await keyring.importServerPublicKey(serverKeyDto.armored_key, this.account.domain);
+    this.account.serverPublicArmoredKey = serverKeyDto.armored_key;
+    await SavedAccountRegistry.replaceServerKey(this.account.domain, serverKeyDto.armored_key);
   }
 }
 

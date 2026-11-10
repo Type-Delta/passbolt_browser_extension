@@ -13,7 +13,7 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import { defaultSharedResourcesWithEncryptedMetadataDtos } from "passbolt-styleguide/src/shared/models/entity/resource/resourcesCollection.test.data";
 import { mockApiResponseError } from "passbolt-styleguide/test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
@@ -38,7 +38,9 @@ describe("MetadataRotateKeysResourcesApiService", () => {
       expect.assertions(2);
 
       const apiResourcesCollection = defaultSharedResourcesWithEncryptedMetadataDtos();
-      fetch.doMockOnceIf(/metadata\/rotate-key\/resources/, () => mockApiResponse(apiResourcesCollection));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/rotate-key\/resources/, () =>
+        mockApiResponse(apiResourcesCollection),
+      );
 
       const service = new MetadataRotateKeysResourcesApiService(apiClientOptions);
       const resultDto = await service.findAll();
@@ -49,7 +51,7 @@ describe("MetadataRotateKeysResourcesApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/rotate-key\/resources/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/rotate-key\/resources/, () =>
         mockApiResponseError(500, "Something wrong happened!"),
       );
 
@@ -60,7 +62,7 @@ describe("MetadataRotateKeysResourcesApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/rotate-key\/resources/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/rotate-key\/resources/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -77,7 +79,7 @@ describe("MetadataRotateKeysResourcesApiService", () => {
       const dto = defaultSharedResourcesWithEncryptedMetadataDtos();
       const resourcesCollection = new ResourcesCollection(dto);
       let reqPayload;
-      fetch.doMockOnceIf(/metadata\/rotate-key\/resources/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/rotate-key\/resources/, async (req) => {
         expect(req.method).toEqual("POST");
         reqPayload = await req.json();
         return mockApiResponse(reqPayload);

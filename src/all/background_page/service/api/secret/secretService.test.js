@@ -13,7 +13,11 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import AccountEntity from "../../../model/entity/account/accountEntity";
@@ -38,7 +42,7 @@ describe("Secret service", () => {
       const resourceId = uuidv4();
       const expectedDto = minimalDto();
 
-      fetch.doMockOnceIf(/secrets\/resource/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /secrets\/resource/, async (request) => {
         const url = new URL(request.url);
         const resourceIdFromUrl = url.pathname.split("/")[3];
         expect(resourceIdFromUrl.substring(0, resourceIdFromUrl.length - 5)).toStrictEqual(resourceId);
@@ -65,7 +69,9 @@ describe("Secret service", () => {
     it("Should throw an error if an error happens on the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/secrets\/resource/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /secrets\/resource/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new SecretService(apiClientOptions);
       try {
@@ -78,7 +84,7 @@ describe("Secret service", () => {
     it("Should throw an error if an error happens when requesting the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/secrets\/resource/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /secrets\/resource/, () => {
         throw new Error("Something wrong happened");
       });
 

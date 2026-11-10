@@ -1,0 +1,201 @@
+name: Fork build and release
+
+on:
+  push:
+    branches:
+      - master
+      - feat/multi-account
+    tags:
+      - "fork-v*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Attach these artifacts to a GitHub release
+        type: boolean
+        default: false
+      release_tag:
+        description: Release tag (required when publish_release is true)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build extension and matched UI assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout extension
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate UI pin
+        id: ui-pin
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const pin = JSON.parse(fs.readFileSync("ui-pin.json", "utf8"));
+          if (pin.sourceDirty) throw new Error("ui-pin.json is marked dirty; commit the final UI and regenerate the pin");
+          if (!/^[0-9a-f]{40}$/.test(pin.commit || "")) throw new Error("ui-pin.json must contain a full UI commit SHA");
+          if (!/^[0-9a-f]{64}$/.test(pin.tarballSha256 || "")) throw new Error("ui-pin.json must contain a tarball SHA-256");
+          const repository = pin.repository.replace(/^https:\/\/github\.com\//, "").replace(/\.git$/, "");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `commit=${pin.commit}\nrepository=${repository}\nrepository_url=${pin.repository}\n`);
+          NODE
+
+      - name: Checkout pinned styleguide source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.ui-pin.outputs.repository }}
+          ref: ${{ steps.ui-pin.outputs.commit }}
+          path: ui-source
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ui-source/package-lock.json
+
+      - name: Verify pinned toolchain and styleguide commit
+        shell: bash
+        run: |
+          test "$(node --version)" = "v22.14.0"
+          test "$(npm --version)" = "10.9.2"
+          test "$(git -C ui-source rev-parse HEAD)" = "${{ steps.ui-pin.outputs.commit }}"
+
+      - name: Install styleguide dependencies
+        working-directory: ui-source
+        run: npm ci
+
+      - name: Build pinned styleguide tarball
+        working-directory: ui-source
+        shell: bash
+        run: |
+          npm run pack:fork -- \
+            --out "$RUNNER_TEMP/ui-artifact" \
+            --require-clean \
+            --require-pinned-toolchain \
+            --repository "${{ steps.ui-pin.outputs.repository_url }}"
+
+      - name: Stage and verify UI tarball
+        shell: bash
+        run: |
+          npm run ui:sync -- \
+            --artifact "$RUNNER_TEMP/ui-artifact/passbolt-styleguide-artifact.json" \
+            --repository "${{ steps.ui-pin.outputs.repository_url }}"
+
+      - name: Install extension dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit -- --runInBand
+
+      - name: Fetch exact frontend base for template verification
+        shell: bash
+        run: docker pull "$(node -p 'require("./deploy/passbolt-frontend/base-image.json").reference')"
+
+      - name: Build release artifacts
+        run: npm run release:build
+
+      - name: Build and verify frontend image
+        shell: bash
+        run: |
+          ./deploy/passbolt-frontend/build-image.sh \
+            --tag "passbolt-frontend:ci-${GITHUB_SHA::12}"
+
+      - name: Sign Firefox XPI with Mozilla (optional)
+        id: sign-firefox
+        continue-on-error: true
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$AMO_JWT_ISSUER" || -z "$AMO_JWT_SECRET" ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/firefox-unpacked" "$RUNNER_TEMP/firefox-signed"
+          unzip -q dist/release/passbolt-multi-account-*-firefox-unsigned-*.zip -d "$RUNNER_TEMP/firefox-unpacked"
+          ./node_modules/.bin/web-ext sign \
+            --source-dir "$RUNNER_TEMP/firefox-unpacked" \
+            --artifacts-dir "$RUNNER_TEMP/firefox-signed" \
+            --channel unlisted \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            --id "passbolt-multi-account@type-delta.github.io"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Add signed XPI only after successful signing
+        if: steps.sign-firefox.outcome == 'success' && steps.sign-firefox.outputs.signed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          signed=$(find "$RUNNER_TEMP/firefox-signed" -maxdepth 1 -name '*.xpi' -print -quit)
+          test -n "$signed"
+          version=$(node -p 'require("./package.json").version')
+          short=$(git rev-parse --short=12 HEAD)
+          cp "$signed" "dist/release/passbolt-multi-account-${version}-firefox-signed-${short}.xpi"
+          npm run release:package -- --refresh
+
+      - name: Report signing outcome
+        if: steps.sign-firefox.outcome == 'failure'
+        run: echo "::warning::Mozilla signing was requested but failed; no signed XPI will be attached."
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: passbolt-fork-builds
+          path: dist/release/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/fork-v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: passbolt-fork-builds
+          path: dist/release
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RELEASE_TAG"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/release/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/release/* \
+              --title "$RELEASE_TAG" \
+              --notes-file dist/release/RELEASE_NOTES.md \
+              --target "$GITHUB_SHA"
+          fi

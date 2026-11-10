@@ -87,10 +87,10 @@ class OnExtensionInstalledController {
     if (!user.isValid()) {
       return;
     }
-    let activeSessionEntity, account;
+    let activeSessionEntity, account, apiClientOptions;
     try {
       account = await GetActiveAccountService.get();
-      const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
+      apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
       const getOrFindActiveSessionService = new GetOrFindActiveSessionService(account, apiClientOptions);
       // use the cached data as the worker could wake up every 30 secondes.
       activeSessionEntity = await getOrFindActiveSessionService.getOrFind();
@@ -108,7 +108,6 @@ class OnExtensionInstalledController {
       return;
     }
     // Logout authenticated user to prevent to ask passphrase for SSO users
-    const apiClientOptions = await user.getApiClientOptions();
     const authModel = new AuthModel(apiClientOptions, account);
     await authModel.logout();
     /*

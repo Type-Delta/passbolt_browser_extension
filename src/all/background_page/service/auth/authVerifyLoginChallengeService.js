@@ -47,6 +47,7 @@ class AuthVerifyLoginChallengeService {
     const responseStage2 = await this.authLoginService.loginStage2(token, userFingerprint);
     // Step 5: Check headers and validate the step
     new GpgAuthHeader(responseStage2.headers, "complete");
+    return this.authLoginService.authenticatedUser;
   }
 }
 

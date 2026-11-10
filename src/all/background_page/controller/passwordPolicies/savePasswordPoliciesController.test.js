@@ -21,7 +21,7 @@ import PasswordPoliciesEntity from "../../model/entity/passwordPolicies/password
 import SavePasswordPoliciesController from "./savePasswordPoliciesController";
 import { defaultPasswordPolicies } from "../../model/entity/passwordPolicies/passwordPoliciesEntity.test.data";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
-import { mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
 
 describe("SavePasswordPoliciesController::exec", () => {
   let account, apiClientOptions;
@@ -42,7 +42,7 @@ describe("SavePasswordPoliciesController::exec", () => {
       default_generator: "passphrase",
     });
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, async (request) => {
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, async (request) => {
       const requestBody = JSON.parse(await request.text());
       expect(requestBody).toStrictEqual(expectedPasswordPolicies);
       return mockApiResponse(expectedPasswordPolicies);
@@ -75,7 +75,7 @@ describe("SavePasswordPoliciesController::exec", () => {
   it("Should throw an exception if something went wrong on the API", async () => {
     expect.assertions(1);
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () => {
       throw new Error("something went wrong");
     });
 

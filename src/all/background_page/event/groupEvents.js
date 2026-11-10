@@ -34,7 +34,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.update-local-storage", async (requestId) => {
     const controller = new UpdateAllGroupsLocalStorageController(worker, requestId, apiClientOptions, account);
-    controller._exec();
+    await controller._exec();
   });
 
   /*
@@ -46,7 +46,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.find-my-groups", async (requestId) => {
     const controller = new FindMyGroupsController(worker, requestId, apiClientOptions);
-    controller._exec();
+    await controller._exec();
   });
 
   /*
@@ -58,7 +58,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.find-by-ids-for-share", async (requestId, groupIds) => {
     const controller = new FindGroupsByIdsForShareController(worker, requestId, apiClientOptions);
-    controller._exec(groupIds);
+    await controller._exec(groupIds);
   });
 
   /*
@@ -76,7 +76,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.create", async (requestId, groupDto) => {
     const controller = new GroupCreateController(worker, requestId, apiClientOptions, account);
-    controller._exec(groupDto);
+    await controller._exec(groupDto);
   });
 
   /*
@@ -89,7 +89,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.update", async (requestId, groupDto) => {
     const controller = new GroupsUpdateController(worker, requestId, apiClientOptions, account);
-    controller._exec(groupDto);
+    await controller._exec(groupDto);
   });
 
   /*
@@ -100,7 +100,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.delete-dry-run", async (requestId, groupId) => {
     const controller = new DeleteDryRunGroupController(worker, requestId, apiClientOptions, account);
-    controller._exec(groupId);
+    await controller._exec(groupId);
   });
 
   /*
@@ -113,7 +113,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.groups.delete", async (requestId, groupId, transferDto) => {
     const controller = new DeleteGroupController(worker, requestId, apiClientOptions, account);
-    controller._exec(groupId, transferDto);
+    await controller._exec(groupId, transferDto);
   });
 };
 export const GroupEvents = { listen };

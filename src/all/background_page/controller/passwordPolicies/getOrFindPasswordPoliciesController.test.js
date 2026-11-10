@@ -16,7 +16,7 @@ import { enableFetchMocks } from "jest-fetch-mock";
 import GetOrFindPasswordPoliciesController from "./getOrFindPasswordPoliciesController";
 import AccountEntity from "../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
-import { mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
 import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
 import PasswordPoliciesEntity from "../../model/entity/passwordPolicies/passwordPoliciesEntity";
 import { defaultPasswordPolicies } from "../../model/entity/passwordPolicies/passwordPoliciesEntity.test.data";
@@ -40,7 +40,9 @@ describe("GetOrFindPasswordPoliciesController::exec", () => {
       default_generator: "passphrase",
     });
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(expectedPasswordPolicies));
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+      mockApiResponse(expectedPasswordPolicies),
+    );
 
     const controller = new GetOrFindPasswordPoliciesController(null, null, account, apiClientOptions);
     const spyOnGetOrFind = jest.spyOn(controller.passwordPoliciesModel, "getOrFind");
@@ -62,7 +64,9 @@ describe("GetOrFindPasswordPoliciesController::exec", () => {
       default_generator: "passphrase",
     });
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(expectedPasswordPolicies));
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+      mockApiResponse(expectedPasswordPolicies),
+    );
 
     const controller = new GetOrFindPasswordPoliciesController(null, null, account, apiClientOptions);
     const storage = controller.passwordPoliciesModel.passwordPoliciesLocalStorage;
@@ -84,10 +88,10 @@ describe("GetOrFindPasswordPoliciesController::exec", () => {
   it("Should return the default password policies if something wrong happens on the API", async () => {
     expect.assertions(4);
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () => {
       throw new Error("something went wrong");
     });
-    fetch.doMockOnceIf(/password-generator\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /password-generator\/settings\.json/, () => {
       throw new Error("something went wrong");
     });
 
@@ -114,10 +118,12 @@ describe("GetOrFindPasswordPoliciesController::exec", () => {
       default_gnerator: "passphrase",
     };
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () => {
       throw new Error("something went wrong");
     });
-    fetch.doMockOnceIf(/password-generator\/settings\.json/, () => mockApiResponse(passwordGeneratorSettings));
+    mockAuthenticatedApiRequest(apiClientOptions, /password-generator\/settings\.json/, () =>
+      mockApiResponse(passwordGeneratorSettings),
+    );
 
     const controller = new GetOrFindPasswordPoliciesController(null, null, account, apiClientOptions);
 
@@ -145,7 +151,9 @@ describe("GetOrFindPasswordPoliciesController::exec", () => {
       }),
     });
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(weakPasswordPolicies));
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+      mockApiResponse(weakPasswordPolicies),
+    );
 
     const controller = new GetOrFindPasswordPoliciesController(null, null, account, apiClientOptions);
 

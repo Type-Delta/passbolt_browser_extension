@@ -73,7 +73,9 @@ describe("AppBootstrap", () => {
     it("Should be able to attach app bootstrap pagemod to browser frame", async () => {
       expect.assertions(1);
       // mock functions
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => new AccountEntity(defaultAccountDto()));
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest
         .spyOn(FindAndUpdateActiveSessionLocalStorageService.prototype, "findAndUpdateAuthenticationStatus")
         .mockImplementation(async () => new UserActiveSessionEntity(defaultUserActiveSessionDto()));
@@ -143,7 +145,9 @@ describe("AppBootstrap", () => {
     it("Should not be able to attach a pagemod if the authentication status threw an error", async () => {
       expect.assertions(1);
 
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => new AccountEntity(defaultAccountDto()));
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       // An API error occured
       jest.spyOn(ServerStatusApiService.prototype, "find").mockRejectedValue(() => true);
       jest

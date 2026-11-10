@@ -16,7 +16,11 @@ import { enableFetchMocks } from "jest-fetch-mock";
 import AccountEntity from "../../model/entity/account/accountEntity";
 import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import GetOrFindPasswordExpirySettingsController from "./getOrFindPasswordExpirySettingsController";
 import { defaultPasswordExpirySettingsDtoFromApi } from "passbolt-styleguide/src/shared/models/entity/passwordExpiry/passwordExpirySettingsEntity.test.data";
 import PasswordExpirySettingsEntity from "passbolt-styleguide/src/shared/models/entity/passwordExpiry/passwordExpirySettingsEntity";
@@ -51,7 +55,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
 
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpirySettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
 
@@ -83,7 +89,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
 
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpirySettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
       const storageService =
@@ -102,7 +110,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
       expect.assertions(1);
 
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponseError(500, "Something went wrong"));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponseError(500, "Something went wrong"),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
       const result = await controller.exec();
@@ -113,7 +123,7 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
       expect.assertions(1);
 
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 
@@ -135,7 +145,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
 
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpiryProSettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
       const result = await controller.exec();
@@ -166,7 +178,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
 
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpiryProSettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
       const storageService =
@@ -185,7 +199,9 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
       expect.assertions(1);
 
       const expectedEntity = PasswordExpiryProSettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponseError(500, "Something went wrong"));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponseError(500, "Something went wrong"),
+      );
 
       const controller = new GetOrFindPasswordExpirySettingsController(null, null, account, apiClientOptions);
       const result = await controller.exec();
@@ -196,7 +212,7 @@ describe("GetOrFindPasswordExpirySettingsController", () => {
       expect.assertions(1);
 
       const expectedEntity = PasswordExpiryProSettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 

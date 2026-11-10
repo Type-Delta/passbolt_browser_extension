@@ -20,7 +20,7 @@ const DEFAULT_BROWSER_EXTENSION_ICON_FILEPATH = "/webAccessibleResources/img/ico
  * @param path
  */
 function setIcon(path) {
-  browser.action.setIcon({
+  return browser.action.setIcon({
     path: {
       32: path || DEFAULT_BROWSER_EXTENSION_ICON_FILEPATH,
     },
@@ -31,14 +31,14 @@ function setIcon(path) {
  * Set the browser extension icon in an active mode
  */
 function activate() {
-  setIcon("/webAccessibleResources/img/icons/icon-32.png");
+  return setIcon("/webAccessibleResources/img/icons/icon-32.png");
 }
 
 /**
  * Set the browser extension icon in an inactive mode
  */
 function deactivate() {
-  setIcon("/webAccessibleResources/img/icons/icon-32-signout.png");
+  return setIcon("/webAccessibleResources/img/icons/icon-32-signout.png");
 }
 
 /**
@@ -50,12 +50,12 @@ function setSuggestedResourcesCount(count) {
   if (hasAtLeastOneResourceToSuggest) {
     const hasLessThanFiveResourcesToSuggest = count <= 5;
     if (hasLessThanFiveResourcesToSuggest) {
-      setIcon(`/webAccessibleResources/img/icons/icon-32-badge-${count}.png`);
+      return setIcon(`/webAccessibleResources/img/icons/icon-32-badge-${count}.png`);
     } else {
-      setIcon(`/webAccessibleResources/img/icons/icon-32-badge-5+.png`);
+      return setIcon(`/webAccessibleResources/img/icons/icon-32-badge-5+.png`);
     }
   } else {
-    setIcon("/webAccessibleResources/img/icons/icon-32.png");
+    return setIcon("/webAccessibleResources/img/icons/icon-32.png");
   }
 }
 

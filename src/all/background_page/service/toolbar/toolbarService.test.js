@@ -15,14 +15,13 @@
 import toolbarService from "./toolbarService";
 import AccountEntity from "../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
-import GetLegacyAccountService from "../account/getLegacyAccountService";
+import GetActiveAccountService from "../account/getActiveAccountService";
 import { BrowserExtensionIconService } from "../ui/browserExtensionIcon.service";
 import { defaultResourceDtosCollection } from "passbolt-styleguide/src/shared/models/entity/resource/resourcesCollection.test.data";
 import ResourceLocalStorage from "../local_storage/resourceLocalStorage";
 import { resourceTypesCollectionDto } from "passbolt-styleguide/src/shared/models/entity/resourceType/resourceTypesCollection.test.data";
 import ResourceTypeLocalStorage from "../local_storage/resourceTypeLocalStorage";
 import User from "../../../../all/background_page/model/user";
-import OpenWebsiteGettingStartedPageService from "../ui/openWebsiteGettingStartedPageService";
 import UserActiveSessionEntity from "passbolt-styleguide/src/shared/models/entity/session/userActiveSessionEntity";
 import { defaultUserActiveSessionDto } from "passbolt-styleguide/src/shared/models/entity/session/userActiveSessionEntity.test.data";
 import GetOrFindActiveSessionService from "../activeSession/getOrFindActiveSessionService";
@@ -60,7 +59,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementation(() => [{ url: "https://www.wherever.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -79,7 +78,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementation(() => [{ url: "https://www.passbolt.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -100,7 +99,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementation(() => [{ url: "https://www.wherever.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -121,7 +120,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementationOnce(() => [{ url: "https://www.wherever.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -144,7 +143,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementationOnce(() => [{ url: "https://www.wherever.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -166,7 +165,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementationOnce(() => [{ url: "https://www.wherever.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -186,7 +185,7 @@ describe("ToolbarService", () => {
 
       jest.spyOn(browser.cookies, "get").mockImplementation(() => ({ value: "csrf-token" }));
       jest.spyOn(browser.tabs, "query").mockImplementationOnce(() => [{ url: "https://www.passbolt.com" }]);
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest.spyOn(ResourceLocalStorage, "get").mockImplementation(() => defaultResourceDtosCollection());
       jest.spyOn(ResourceTypeLocalStorage.prototype, "getData").mockImplementation(() => resourceTypesCollectionDto());
       jest
@@ -203,7 +202,7 @@ describe("ToolbarService", () => {
       expect.assertions(1);
       const account = new AccountEntity(defaultAccountDto());
 
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => account);
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => account);
       jest
         .spyOn(GetOrFindActiveSessionService.prototype, "getOrFind")
         .mockImplementation(
@@ -217,7 +216,7 @@ describe("ToolbarService", () => {
     it("Given an anonymous user switches to another application, it should not change the passbolt icon.", async () => {
       expect.assertions(1);
 
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => {
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {
         throw Error("The user is not set");
       });
 
@@ -227,15 +226,15 @@ describe("ToolbarService", () => {
   });
 
   describe("handleIconToolbarClicked", () => {
-    it("Given that no account is set on the local storage, a tab should be opened on the passbolt start URL.", async () => {
+    it("Given no saved account, open Quick Access for enrollment.", async () => {
       expect.assertions(1);
 
-      jest.spyOn(GetLegacyAccountService, "get").mockImplementation(() => {});
-      jest.spyOn(OpenWebsiteGettingStartedPageService.prototype, "openTab").mockImplementation(() => {});
+      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest.spyOn(browser.browserAction, "openPopup").mockImplementation(() => {});
 
       toolbarService.handleIconToolbarClicked();
 
-      expect(OpenWebsiteGettingStartedPageService.prototype.openTab).toHaveBeenCalledTimes(1);
+      expect(browser.browserAction.openPopup).toHaveBeenCalledTimes(1);
     });
 
     it("Given that an account is set on the local storage, the popup should be set with the right URL and the popup should be opened", async () => {

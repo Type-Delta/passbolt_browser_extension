@@ -36,7 +36,7 @@ class OnStartUpService {
       Config.init();
     }
     // Flush the local storage
-    LocalStorageService.flush();
+    await LocalStorageService.flush();
     const user = User.getInstance();
     // Check if user is valid
     if (!user.isValid()) {

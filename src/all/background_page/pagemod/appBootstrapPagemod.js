@@ -18,6 +18,7 @@ import { AppBootstrapEvents } from "../event/appBootstrapEvents";
 import GetActiveAccountService from "../service/account/getActiveAccountService";
 import BuildApiClientOptionsService from "../service/account/buildApiClientOptionsService";
 import FindAndUpdateActiveSessionLocalStorageService from "../service/activeSession/findAndUpdateActiveSessionLocalStorageService";
+import SavedAccountRegistry from "../service/account/savedAccountRegistry";
 
 class AppBootstrap extends Pagemod {
   /**
@@ -83,8 +84,14 @@ class AppBootstrap extends Pagemod {
    */
   async assertUrlAttachConstraint(frameDetails) {
     try {
-      await GetActiveAccountService.get();
-      return ParseAppUrlService.test(frameDetails.url);
+      const account = await GetActiveAccountService.get();
+      const page = new URL(frameDetails.url);
+      const base = new URL(SavedAccountRegistry.canonicalDomain(account.domain));
+      return (
+        page.origin === base.origin &&
+        (page.pathname === base.pathname || page.pathname.startsWith(`${base.pathname.replace(/\/$/, "")}/`)) &&
+        ParseAppUrlService.test(frameDetails.url)
+      );
     } catch (error) {
       console.log(error);
       return false;

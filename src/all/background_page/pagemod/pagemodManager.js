@@ -30,6 +30,9 @@ import AccountRecoveryPagemod from "./accountRecoveryPagemod";
 /**
  * The pagemod manager have the role of dispatching the process to the correct pagemod
  */
+import AccountContext from "../service/account/accountContext";
+import { SavedAccountsEvents } from "../event/savedAccountsEvents";
+
 class PagemodManager {
   constructor() {
     // The order is very important keep the bootstrap application first follow by the webIntegration
@@ -61,8 +64,10 @@ class PagemodManager {
    * @returns {Promise<void>}
    */
   async exec(frameDetails) {
-    const pagemod = await this.getPagemodThatCanBeAttachedTo(frameDetails);
-    await pagemod?.injectFiles(frameDetails.tabId, frameDetails.frameId);
+    await AccountContext.run(AccountContext.generation, async () => {
+      const pagemod = await this.getPagemodThatCanBeAttachedTo(frameDetails);
+      await pagemod?.injectFiles(frameDetails.tabId, frameDetails.frameId);
+    });
   }
 
   /**
@@ -86,7 +91,10 @@ class PagemodManager {
    */
   async attachEventToPort(port, appName) {
     const pagemod = this.findPagemodByAppName(appName);
-    await pagemod?.attachEvents(port);
+    if (["QuickAccess", "Auth", "App", "AuthBootstrap", "AppBootstrap"].includes(appName)) {
+      SavedAccountsEvents.listen({ port, tab: port._port.sender.tab, name: appName });
+    }
+    await AccountContext.run(port.accountGeneration, () => pagemod?.attachEvents(port));
   }
 
   /**

@@ -35,6 +35,17 @@ class KeepSessionAliveService {
     });
   }
 
+  /** Resume only the selected account's existing remember-until-logout choice. Never refresh its deadline. */
+  static async resume(accountId) {
+    const slot = await PassphraseStorageService.slot(accountId);
+    await navigator.locks.request(slot, async () => {
+      const data = (await browser.storage.session.get(slot))[slot];
+      if (data?.passphrase && data.expires === null) {
+        await this.start();
+      }
+    });
+  }
+
   /**
    * Check if this service is started.
    * @returns {Promise<boolean>}
@@ -67,7 +78,7 @@ class KeepSessionAliveService {
     const account = await GetActiveAccountService.get();
     const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
     const userApiService = new UserApiService(apiClientOptions);
-    userApiService.keepSessionAlive();
+    await userApiService.keepSessionAlive();
   }
 
   /**

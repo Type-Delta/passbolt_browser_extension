@@ -11,6 +11,7 @@
  * @link          https://www.passbolt.com Passbolt(tm)
  * @since         2.0.0
  */
+import AccountContext from "../account/accountContext";
 import { BrowserExtensionIconService } from "../ui/browserExtensionIcon.service";
 import BuildApiClientOptionsService from "../account/buildApiClientOptionsService";
 import GetActiveAccountService from "../account/getActiveAccountService";
@@ -77,8 +78,7 @@ class ToolbarService {
    * @returns {Promise<void>}
    */
   async handleUserLoggedIn() {
-    BrowserExtensionIconService.activate();
-    await this.updateSuggestedResourcesBadge();
+    await this.updateSuggestedResourcesBadge(true);
   }
 
   /**
@@ -129,14 +129,7 @@ class ToolbarService {
    * The event is called by the browser only if no quickaccess popup URL is set (neither from the manifest nor in script).
    */
   async handleIconToolbarClicked() {
-    const user = User.getInstance();
-    if (!user.isValid()) {
-      // if the user is not set, a tab on passbolt start page is opened
-      await this.openGettingStartedPage();
-      return;
-    }
-
-    // if the user account is set, sets the QA popup to the expected URL and open it.
+    // Account enrollment is available in Quick Access before the first account exists.
     this.setQuickaccessPopup();
     browserAction?.openPopup(); // 'openPopup' is not available in Edge
   }
@@ -169,24 +162,35 @@ class ToolbarService {
    * @private
    */
   async resetSuggestedResourcesBadge() {
-    this.tabUrl = null;
-    // Should do nothing if the user is not authenticated
-    const account = await GetActiveAccountService.get();
-
-    const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
-    const userActiveSessionEntity = await this.getUserActiveSession(account, apiClientOptions);
-    if (!userActiveSessionEntity.isAuthenticated) {
+    if (AccountContext.transitioning) {
       return;
     }
-    BrowserExtensionIconService.setSuggestedResourcesCount(0);
+    return AccountContext.run(AccountContext.generation, async () => {
+      this.tabUrl = null;
+      // Should do nothing if the user is not authenticated
+      const account = await GetActiveAccountService.get();
+
+      const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
+      const userActiveSessionEntity = await this.getUserActiveSession(account, apiClientOptions);
+      if (!userActiveSessionEntity.isAuthenticated) {
+        return;
+      }
+      await BrowserExtensionIconService.setSuggestedResourcesCount(0);
+    }).catch(() => {});
   }
 
   /**
    * Update the suggested resources badge given the current tab
    * @private
    */
-  async updateSuggestedResourcesBadge() {
-    try {
+  async updateSuggestedResourcesBadge(activate = false) {
+    if (AccountContext.transitioning) {
+      return;
+    }
+    return AccountContext.run(AccountContext.generation, async () => {
+      if (activate) {
+        await BrowserExtensionIconService.activate();
+      }
       const account = await GetActiveAccountService.get();
       const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
       const userActiveSessionEntity = await this.getUserActiveSession(account, apiClientOptions);
@@ -219,11 +223,11 @@ class ToolbarService {
         suggestedResourcesCount = resourcesCollection.length;
       }
 
-      BrowserExtensionIconService.setSuggestedResourcesCount(suggestedResourcesCount);
-    } catch (error) {
+      await BrowserExtensionIconService.setSuggestedResourcesCount(suggestedResourcesCount);
+    }).catch((error) => {
       // Error happens only if no account is associate
       console.error(error);
-    }
+    });
   }
 
   /**

@@ -1,3 +1,4 @@
+import AccountContext from "../account/accountContext";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) 2022 Passbolt SA (https://www.passbolt.com)
@@ -50,12 +51,49 @@ class PopupHandlerService {
       throw new Error("The login URL should be a valid instance of a SsoLoginUrlEntity");
     }
 
+    const generation = AccountContext.generation;
+    AccountContext.assert(generation);
     this.popup = await this.openPopup(loginUrlEntity.url);
     this.popupTabId = this.popup.tabs[0].id;
+    try {
+      AccountContext.assert(generation);
+    } catch (error) {
+      await this.closeHandler();
+      throw error;
+    }
 
     return new Promise((resolve, reject) => {
-      this.resolvePromise = resolve;
-      this.rejectPromise = reject;
+      let settled = false;
+      const settle = (error, value) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        browser.tabs.onUpdated.removeListener(this.verifyCodeInTab);
+        browser.tabs.onRemoved.removeListener(this.verifyPopupClosed);
+        AccountContext.interactiveRequests.delete(this.cancel);
+        this.resolvePromise = null;
+        this.rejectPromise = null;
+        if (error) {
+          reject(error);
+        } else {
+          resolve(value);
+        }
+      };
+      this.resolvePromise = (value) => {
+        try {
+          AccountContext.assert(generation);
+          settle(null, value);
+        } catch (error) {
+          settle(error);
+        }
+      };
+      this.rejectPromise = (error) => settle(error);
+      this.cancel = () => {
+        settle(new UserAbortsOperationError("The account request was canceled. Reopen the vault."));
+        this.closeHandler().catch(() => {});
+      };
+      AccountContext.interactiveRequests.add(this.cancel);
 
       browser.tabs.onUpdated.addListener(this.verifyCodeInTab);
       browser.tabs.onRemoved.addListener(this.verifyPopupClosed);
@@ -68,6 +106,9 @@ class PopupHandlerService {
    * @private
    */
   async verifyCodeInTab(tabId, changeInfo, tab) {
+    if (!this.rejectPromise) {
+      return;
+    }
     if (tabId === this.originTabIdCall) {
       this.rejectPromise(
         new UserAbortsOperationError("The user navigated away from the tab where the SSO sign-in initiated"),
@@ -102,6 +143,9 @@ class PopupHandlerService {
    * @private
    */
   async verifyPopupClosed(tabId) {
+    if (!this.rejectPromise) {
+      return;
+    }
     if (tabId === this.originTabIdCall) {
       this.rejectPromise(new UserAbortsOperationError("The user closed the tab from where the SSO sign-in initiated"));
       await this.closeHandler();
@@ -116,14 +160,16 @@ class PopupHandlerService {
    * @public
    */
   async closeHandler() {
+    this.rejectPromise?.(new UserAbortsOperationError("The dialog has been closed."));
     browser.tabs.onUpdated.removeListener(this.verifyCodeInTab);
     browser.tabs.onRemoved.removeListener(this.verifyPopupClosed);
+    AccountContext.interactiveRequests.delete(this.cancel);
     this.rejectPromise = null;
     this.resolvePromise = null;
     this.codeFound = null;
 
     if (this.popup && !this.popup.closed) {
-      browser.tabs.remove(this.popupTabId);
+      await browser.tabs.remove(this.popupTabId);
     }
     this.popup = null;
   }

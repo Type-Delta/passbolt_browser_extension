@@ -14,7 +14,11 @@
 
 import { enableFetchMocks } from "jest-fetch-mock";
 import { v4 as uuidv4 } from "uuid";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import CommentApiService from "./commentApiService";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
@@ -38,7 +42,7 @@ describe("ActionLogService", () => {
       expect.assertions(2);
 
       const commentsCollection = [defaultCommentCollectionDto()];
-      fetch.doMockOnceIf(/comments\/resource/, () => mockApiResponse(commentsCollection));
+      mockAuthenticatedApiRequest(apiClientOptions, /comments\/resource/, () => mockApiResponse(commentsCollection));
 
       const service = new CommentApiService(apiClientOptions, account);
       const resultDto = await service.findAll("Resource", uuidv4(), { creator: true });
@@ -49,7 +53,9 @@ describe("ActionLogService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/comments\/resource/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /comments\/resource/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new CommentApiService(apiClientOptions);
 
@@ -58,7 +64,7 @@ describe("ActionLogService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/comments\/resource/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /comments\/resource/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -78,7 +84,7 @@ describe("ActionLogService", () => {
 
       const payload = new CommentEntity(commentDto);
       let reqPayload;
-      fetch.doMockOnceIf(/comments\/resource/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /comments\/resource/, async (req) => {
         expect(req.method).toEqual("POST");
         reqPayload = await req.json();
         return mockApiResponse(defaultCommentDto({ ...reqPayload, id: commentDto.id }));
@@ -104,7 +110,7 @@ describe("ActionLogService", () => {
       expect.assertions(1);
 
       const deleteCommentId = uuidv4();
-      fetch.doMockOnceIf(new RegExp(`/comments/${deleteCommentId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/comments/${deleteCommentId}\\.json`), async (req) => {
         expect(req.method).toEqual("DELETE");
         return mockApiResponse({});
       });

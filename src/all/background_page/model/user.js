@@ -6,7 +6,8 @@
  */
 import { Config } from "./config";
 import UserSettings from "./userSettings/userSettings";
-import { ApiClientOptions } from "passbolt-styleguide/src/shared/lib/apiClient/apiClientOptions";
+import BuildApiClientOptionsService from "../service/account/buildApiClientOptionsService";
+import GetLegacyAccountService from "../service/account/getLegacyAccountService";
 import Validator from "validator";
 import { ValidatorRule } from "../utils/validatorRules";
 
@@ -323,7 +324,7 @@ const User = function () {
    * @return {ApiClientOptions} apiClientOptions
    */
   this.getApiClientOptions = async function () {
-    return new ApiClientOptions().setBaseUrl(this.settings.getDomain());
+    return BuildApiClientOptionsService.buildFromAccount(GetLegacyAccountService.get());
   };
 
   /**

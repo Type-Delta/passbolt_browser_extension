@@ -16,6 +16,15 @@ import PagemodManager from "../../pagemod/pagemodManager";
 import WorkersSessionStorage from "../../service/sessionStorage/workersSessionStorage";
 import WorkerEntity from "../../model/entity/worker/workerEntity";
 
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
+import AccountContext from "../../service/account/accountContext";
+import PendingAccountSessionStorage from "../../service/account/pendingAccountSessionStorage";
+
+const ACCOUNT_FRAME_PAGES = {
+  App: "/webAccessibleResources/passbolt-iframe-app.html",
+  Auth: "/webAccessibleResources/passbolt-iframe-login.html",
+};
+
 class PortManager {
   constructor() {
     this._ports = {}; // Object{portId: port, ...} for which the port is available
@@ -29,12 +38,21 @@ class PortManager {
    * @returns {Promise<void>}
    */
   async onPortConnect(port) {
-    if (await this.isQuickAccessPort(port.sender)) {
-      // Quickaccess is not stored in the session storage and there is no worker entity referenced
-      await this.registerAndAttachEvent(port, "QuickAccess");
-    } else {
-      await this.connectPortFromTab(port);
-    }
+    const generation = AccountContext.generation;
+    return AccountContext.run(generation, async () => {
+      if (await this.isQuickAccessPort(port.sender)) {
+        AccountContext.assert(generation);
+        await this.registerAndAttachEvent(port, "QuickAccess");
+      } else {
+        await this.connectPortFromTab(port);
+      }
+    }).catch((error) => {
+      port.disconnect();
+      if (generation !== AccountContext.generation || AccountContext.transitioning) {
+        return;
+      }
+      throw error;
+    });
   }
 
   /**
@@ -74,14 +92,43 @@ class PortManager {
    * @returns {Promise<boolean>}
    */
   async isQuickAccessPort(sender) {
-    if (sender.tab) {
-      // Tab property will only be present when the connection was opened from a tab
+    const quickAppUrl = browser.runtime.getURL("/webAccessibleResources/quickaccess.html");
+    if (sender.tab && (sender.frameId !== 0 || sender.tab.url?.split(/[?#]/)[0] !== quickAppUrl)) {
       return false;
     }
 
-    const quickAppUrl = await browser.runtime.getURL("/webAccessibleResources/quickaccess.html");
-    const isPortUrlAQuickAppUrl = sender.url.startsWith(quickAppUrl);
+    if (
+      new URL(sender.url).searchParams.has("passbolt") &&
+      new URL(sender.url).searchParams.get("passbolt") !== "quickaccess"
+    ) {
+      return false;
+    }
+    const isPortUrlAQuickAppUrl =
+      new URL(sender.url).href.split(/[?#]/)[0] === new URL(quickAppUrl).href.split(/[?#]/)[0];
     return isPortUrlAQuickAppUrl;
+  }
+
+  /** Account UI roles are narrower than extension origin alone, especially for framed Quick Access. */
+  async isAccountManagementSender(role, sender, portId) {
+    if (role === "QuickAccess") {
+      if (await this.isQuickAccessPort(sender)) {
+        return true;
+      }
+      if (!portId) {
+        return false;
+      }
+      const worker = await WorkersSessionStorage.getWorkerById(portId);
+      return Boolean(worker) && worker.name === role && this.isKnownPortSender(new WorkerEntity(worker), sender);
+    }
+    if (
+      !ACCOUNT_FRAME_PAGES[role] ||
+      sender?.url?.split(/[?#]/)[0] !== browser.runtime.getURL(ACCOUNT_FRAME_PAGES[role]) ||
+      !sender.tab
+    ) {
+      return false;
+    }
+    const worker = await WorkersSessionStorage.getWorkerById(portId);
+    return Boolean(worker) && worker.name === role && this.isKnownPortSender(new WorkerEntity(worker), sender);
   }
 
   /**
@@ -91,6 +138,52 @@ class PortManager {
    * @returns {Promise<boolean>}
    */
   async isKnownPortSender(worker, sender) {
+    const state = await SavedAccountRegistry.read();
+    if ((worker.toDto().account_id || null) !== state.active_account_id) {
+      return false;
+    }
+    const account = state.accounts
+      .map((dto) => SavedAccountRegistry.account(dto))
+      .find((account) => account.id === state.active_account_id);
+    if (account && ["App", "AppBootstrap", "Auth", "AuthBootstrap"].includes(worker.name)) {
+      const page = new URL(sender.tab.url);
+      const base = new URL(account.domain);
+      if (
+        page.origin !== base.origin ||
+        !(page.pathname === base.pathname || page.pathname.startsWith(`${base.pathname.replace(/\/$/, "")}/`))
+      ) {
+        return false;
+      }
+      const frame = new URL(sender.url);
+      const extension = new URL(browser.runtime.getURL("/"));
+      if (
+        ACCOUNT_FRAME_PAGES[worker.name] &&
+        (frame.protocol !== extension.protocol ||
+          frame.host !== extension.host ||
+          frame.pathname !== new URL(browser.runtime.getURL(ACCOUNT_FRAME_PAGES[worker.name])).pathname)
+      ) {
+        return false;
+      }
+      if (frame.protocol !== extension.protocol || frame.host !== extension.host) {
+        if (
+          frame.origin !== base.origin ||
+          !(frame.pathname === base.pathname || frame.pathname.startsWith(`${base.pathname.replace(/\/$/, "")}/`))
+        ) {
+          return false;
+        }
+      }
+    }
+    if (worker.name === "QuickAccess") {
+      const page = browser.runtime.getURL("/webAccessibleResources/quickaccess.html");
+      if (
+        sender.url?.split(/[?#]/)[0] !== page ||
+        sender.tab?.url?.split(/[?#]/)[0] !== page ||
+        sender.frameId !== 0 ||
+        new URL(sender.url).searchParams.get("passbolt") !== worker.id
+      ) {
+        return false;
+      }
+    }
     // Iframe application connecting for the first time are not know therefor their frame id is not yet associated
     if (worker.frameId === null) {
       worker.frameId = sender.frameId;
@@ -193,6 +286,12 @@ class PortManager {
     }
     if (!Number.isInteger(tabId)) {
       throw new Error("The tab identifier should be a valid integer.");
+    }
+    if (removeInfo) {
+      const pending = await PendingAccountSessionStorage.read();
+      if (pending?.tab_id === tabId) {
+        await PendingAccountSessionStorage.remove(pending);
+      }
     }
     const workers = await WorkersSessionStorage.getWorkersByTabId(tabId);
     workers.forEach((worker) => this.removePort(worker.id, removeInfo));

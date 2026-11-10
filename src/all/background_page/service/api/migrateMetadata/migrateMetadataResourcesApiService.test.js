@@ -13,7 +13,10 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponseWithPagination } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponseWithPagination,
+} from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -39,7 +42,7 @@ describe("migrateMetadataResourcesApiService", () => {
       expect.assertions(5);
       const pageCount = 5;
       const resourcesCollection = defaultResourceDtosCollection();
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, () =>
         mockApiResponseWithPagination(resourcesCollection, {}, pageCount),
       );
 
@@ -56,7 +59,7 @@ describe("migrateMetadataResourcesApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, () =>
         mockApiResponseError(500, "Something wrong happened!"),
       );
 
@@ -67,7 +70,7 @@ describe("migrateMetadataResourcesApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -83,7 +86,7 @@ describe("migrateMetadataResourcesApiService", () => {
 
       const nextCollection = defaultResourceDtosCollection();
       const resourcesCollection = new ResourcesCollection(defaultResourceDtosCollection());
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, async (req) => {
         const body = JSON.parse(await req.text());
         expect(body).toStrictEqual(resourcesCollection.toDto());
         return mockApiResponseWithPagination(nextCollection, {}, 1);
@@ -98,7 +101,7 @@ describe("migrateMetadataResourcesApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, () =>
         mockApiResponseError(500, "Something wrong happened!"),
       );
 
@@ -110,7 +113,7 @@ describe("migrateMetadataResourcesApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/upgrade\/resources\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/upgrade\/resources\.json/, () => {
         throw new Error("Service unavailable");
       });
 

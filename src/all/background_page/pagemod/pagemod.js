@@ -21,6 +21,9 @@ import WorkerEntity from "../model/entity/worker/workerEntity";
  * Top browser frame id
  * @type {number}
  */
+import SavedAccountRegistry from "../service/account/savedAccountRegistry";
+import AccountContext from "../service/account/accountContext";
+
 const TOP_FRAME_ID = 0;
 
 /**
@@ -93,8 +96,11 @@ class Pagemod {
    * @returns {Promise<void>}
    */
   async injectFiles(tabId, frameId) {
+    AccountContext.assert(AccountContext.generation);
+    const state = await SavedAccountRegistry.read();
     const worker = {
       id: uuidv4(),
+      account_id: state.active_account_id,
       name: this.appName,
       tabId: tabId,
       frameId: frameId,
@@ -106,11 +112,11 @@ class Pagemod {
     // a helper to handle insertion of scripts, variables and css in target page
     const scriptExecution = new ScriptExecution(tabId, frameId);
     // Inject port name
-    scriptExecution.injectPortname(worker.id);
+    await scriptExecution.injectPortname(worker.id);
     // Insert Css files
-    scriptExecution.injectCss(this.contentStyleFiles);
+    await scriptExecution.injectCss(this.contentStyleFiles);
     // Insert script files
-    scriptExecution.injectJs(this.contentScriptFiles);
+    await scriptExecution.injectJs(this.contentScriptFiles);
   }
 
   /**

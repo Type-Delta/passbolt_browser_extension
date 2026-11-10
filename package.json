@@ -21,7 +21,7 @@
     "kdbxweb": "2.1.1",
     "openpgp": "^6.1.1",
     "papaparse": "^5.5.2",
-    "passbolt-styleguide": "^5.17.2",
+    "passbolt-styleguide": "file:vendor/passbolt-styleguide.tgz",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^14.0.0",
@@ -100,12 +100,25 @@
     "dev:watch:build:chromium-mv3": "npm run dev:build:chromium-mv3 -- -w",
     "dev:watch:build:safari": "npm run dev:build:safari -- -w",
     "lint": "npm run lint:lockfile && npm run lint:eslint",
-    "lint:lockfile": "lockfile-lint --path package-lock.json --allowed-hosts npm --allowed-schemes \"https:\" --empty-hostname false",
+    "lint:lockfile": "lockfile-lint --path package-lock.json --allowed-hosts npm --allowed-schemes \"https:\" \"file:\" --empty-hostname true",
     "lint:eslint": "eslint src --max-warnings 0",
     "lint:eslint-fix": "eslint --fix src",
     "test": "npm run test:unit",
     "test:unit": "jest --no-cache ./src/all/ ./src/chrome-mv3/ ./src/chrome/ ./src/safari/",
     "test:coverage": "jest --no-cache ./src/all/ ./src/chrome-mv3/ ./src/safari/ --coverage",
-    "test:ci:coverage": "npm run test:coverage -- --runInBand"
-  }
+    "test:ci:coverage": "npm run test:coverage -- --runInBand",
+    "ui:sync": "node scripts/sync-ui.mjs",
+    "ui:local": "node scripts/local-ui-test.mjs",
+    "ui:verify": "node scripts/verify-ui.mjs",
+    "assets:build": "node scripts/build-server-assets.mjs",
+    "release:build": "node scripts/build-release.mjs",
+    "release:package": "node scripts/package-release.mjs",
+    "image:build": "deploy/passbolt-frontend/build-image.sh",
+    "prebuild": "node scripts/verify-ui.mjs",
+    "prebuild:firefox": "node scripts/verify-ui.mjs",
+    "prebuild:chromium-mv3": "node scripts/verify-ui.mjs",
+    "ui:pin": "scripts/with-release-toolchain.sh run ui:sync -- --source ../passbolt_styleguide --write-pin",
+    "ui:bootstrap": "scripts/with-release-toolchain.sh run ui:sync -- --source ../passbolt_styleguide"
+  },
+  "packageManager": "npm@10.9.2"
 }

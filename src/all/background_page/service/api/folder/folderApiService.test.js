@@ -1,5 +1,9 @@
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -23,7 +27,7 @@ describe("FolderApiService", () => {
       const folderId = uuidv4();
       const folderData = { name: "Renamed folder" };
       let reqPayload;
-      fetch.doMockOnceIf(new RegExp(`/folders/${folderId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/folders/${folderId}\\.json`), async (req) => {
         expect(req.method).toEqual("PUT");
         reqPayload = await req.json();
         return mockApiResponse({ id: folderId, ...folderData });
@@ -52,7 +56,9 @@ describe("FolderApiService", () => {
     it("should throw an error if the API returns an error response", async () => {
       expect.assertions(2);
       const folderId = uuidv4();
-      fetch.doMockOnceIf(/folders/, () => mockApiResponseError(500, "Something went wrong!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /folders/, () =>
+        mockApiResponseError(500, "Something went wrong!"),
+      );
 
       const service = new FolderApiService(apiClientOptions);
       const promise = service.update(folderId, { name: "test" });
@@ -63,7 +69,7 @@ describe("FolderApiService", () => {
     it("should throw a service unavailable error if the API is unreachable", async () => {
       expect.assertions(1);
       const folderId = uuidv4();
-      fetch.doMockOnceIf(/folders/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /folders/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -77,7 +83,7 @@ describe("FolderApiService", () => {
       expect.assertions(3);
       const folderId = uuidv4();
       let request;
-      fetch.doMockOnceIf(new RegExp(`/folders/${folderId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/folders/${folderId}\\.json`), async (req) => {
         request = req;
         return mockApiResponse(null);
       });
@@ -93,7 +99,7 @@ describe("FolderApiService", () => {
       expect.assertions(2);
       const folderId = uuidv4();
       let request;
-      fetch.doMockOnceIf(new RegExp(`/folders/${folderId}\\.json`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/folders/${folderId}\\.json`), async (req) => {
         request = req;
         return mockApiResponse(null);
       });
@@ -118,7 +124,9 @@ describe("FolderApiService", () => {
     it("throws an error if the API returns an error response.", async () => {
       expect.assertions(2);
       const folderId = uuidv4();
-      fetch.doMockOnceIf(/folders/, () => mockApiResponseError(500, "Something went wrong!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /folders/, () =>
+        mockApiResponseError(500, "Something went wrong!"),
+      );
 
       const service = new FolderApiService(apiClientOptions);
       const promise = service.delete(folderId);
@@ -130,7 +138,7 @@ describe("FolderApiService", () => {
     it("throws a service unavailable error if the request fails outside of the API.", async () => {
       expect.assertions(2);
       const folderId = uuidv4();
-      fetch.doMockOnceIf(/folders/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /folders/, () => {
         throw new Error("Service unavailable");
       });
 

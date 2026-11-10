@@ -13,7 +13,11 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import PasswordExpiryResourceService from "./passwordExpiryResourceService";
@@ -42,7 +46,7 @@ describe("PasswordExpiry service", () => {
       const dataToRegister = defaultPasswordExpiryResourceDto();
       const expectedDto = defaultPasswordExpiryResourceDtoFromApi(dataToRegister);
 
-      fetch.doMockOnceIf(/password-expiry\/resources\.json/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/resources\.json/, async (request) => {
         const body = JSON.parse(await request.text());
         expect(body).toStrictEqual(dataToRegister);
         return mockApiResponse(expectedDto);
@@ -57,7 +61,7 @@ describe("PasswordExpiry service", () => {
     it("Should throw an error if an error happens on the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/password-expiry\/resources\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/resources\.json/, () =>
         mockApiResponseError(500, "Something wrong happened!"),
       );
 
@@ -72,7 +76,7 @@ describe("PasswordExpiry service", () => {
     it("Should throw an error if an error happens when requesting the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/password-expiry\/resources\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/resources\.json/, () => {
         throw new Error("Something wrong happened");
       });
 

@@ -13,7 +13,7 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -36,7 +36,9 @@ describe("MetadataTypesSettingsApiService", () => {
   describe("::findSettings", () => {
     it("retrieves the settings from API", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/types\/settings/, () => mockApiResponse(defaultMetadataTypesSettingsV50FreshDto()));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/types\/settings/, () =>
+        mockApiResponse(defaultMetadataTypesSettingsV50FreshDto()),
+      );
 
       const service = new MetadataTypesSettingsApiService(apiClientOptions);
       const resultDto = await service.findSettings();
@@ -47,7 +49,9 @@ describe("MetadataTypesSettingsApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/types\/settings/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/types\/settings/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new MetadataTypesSettingsApiService(apiClientOptions);
 
@@ -56,7 +60,7 @@ describe("MetadataTypesSettingsApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/types\/settings/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/types\/settings/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -72,7 +76,7 @@ describe("MetadataTypesSettingsApiService", () => {
 
       const settingsDto = defaultMetadataTypesSettingsV50FreshDto();
       const settings = new MetadataTypesSettingsEntity(settingsDto);
-      fetch.doMockOnceIf(/metadata\/types\/settings/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/types\/settings/, async (req) => {
         expect(req.method).toEqual("POST");
         const reqPayload = await req.json();
         return mockApiResponse(defaultMetadataTypesSettingsV50FreshDto(reqPayload));

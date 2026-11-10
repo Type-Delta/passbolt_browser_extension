@@ -1,3 +1,6 @@
+import SavedAccountsService from "../../service/account/savedAccountsService";
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
+import PortManager from "../../sdk/port/portManager";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) Passbolt SA (https://www.passbolt.com)
@@ -45,6 +48,20 @@ export default class RedirectPostLoginController {
    * @returns {Promise<void>}
    */
   async exec() {
+    const pending = await SavedAccountsService.pending();
+    if (pending?.saved && SavedAccountRegistry.account(pending.account).id === this.account.id) {
+      if (
+        !(await PortManager.isAccountManagementSender(
+          "Auth",
+          this.worker.port._port.sender,
+          this.worker.port._port.name,
+        ))
+      ) {
+        throw new Error("Open the selected account's sign-in page to complete MFA.");
+      }
+      await SavedAccountsService.navigate(SavedAccountsService.pendingResult(this.account, pending), this.worker);
+      return;
+    }
     const workerUrl = new URL(this.worker.tab.url);
     const redirectTo = workerUrl.searchParams.get("redirect");
 

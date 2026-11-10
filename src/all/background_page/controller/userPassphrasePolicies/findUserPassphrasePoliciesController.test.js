@@ -18,7 +18,11 @@ import BuildApiClientOptionsService from "../../service/account/buildApiClientOp
 import UserPassphrasePoliciesEntity from "passbolt-styleguide/src/shared/models/entity/userPassphrasePolicies/userPassphrasePoliciesEntity";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
 import { defaultUserPassphrasePoliciesEntityDto } from "passbolt-styleguide/src/shared/models/userPassphrasePolicies/UserPassphrasePoliciesDto.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import FindUserPassphrasePoliciesController from "./findUserPassphrasePoliciesController";
 
 describe("FindUserPassphrasePoliciesController", () => {
@@ -39,7 +43,9 @@ describe("FindUserPassphrasePoliciesController", () => {
       entropy_minimum: 112,
     });
     const expectedEntity = new UserPassphrasePoliciesEntity(expectedDto);
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => mockApiResponse(expectedDto));
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
+      mockApiResponse(expectedDto),
+    );
 
     const controller = new FindUserPassphrasePoliciesController(null, null, apiClientOptions);
     const result = await controller.exec();
@@ -50,7 +56,7 @@ describe("FindUserPassphrasePoliciesController", () => {
     expect.assertions(1);
 
     const expectedEntity = UserPassphrasePoliciesEntity.createFromDefault();
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
       mockApiResponseError(500, "Something went wrong"),
     );
 
@@ -63,7 +69,7 @@ describe("FindUserPassphrasePoliciesController", () => {
     expect.assertions(1);
 
     const expectedEntity = UserPassphrasePoliciesEntity.createFromDefault();
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
       throw new Error("Something went wrong");
     });
 
