@@ -47,6 +47,8 @@ gi
 ######################
 junit.xml
 *.vim
+# Independently checked-out and hash-verified UI source used by CI.
+/ui-source/
 
 # XCode + Swift project #
 #########################

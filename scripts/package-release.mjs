@@ -47,6 +47,9 @@ const ui = serverManifest.ui;
 const extensionCommit = gitValue(ROOT, "rev-parse", "HEAD");
 const extensionRef = gitValue(ROOT, "rev-parse", "--abbrev-ref", "HEAD");
 const extensionDirty = gitValue(ROOT, "status", "--porcelain").length > 0;
+if (extensionDirty && !ui.localOnly) {
+  throw new Error("Release packaging requires a clean extension source tree");
+}
 const shortExtensionCommit = extensionCommit.slice(0, 12);
 const shortUiCommit = ui.commit.slice(0, 12);
 
