@@ -90,6 +90,15 @@ jobs:
             --require-pinned-toolchain \
             --repository "${{ steps.ui-pin.outputs.repository_url }}"
 
+      - name: Preserve UI reproducibility diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-repro-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/ui-artifact/
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: Stage and verify UI tarball
         shell: bash
         run: |

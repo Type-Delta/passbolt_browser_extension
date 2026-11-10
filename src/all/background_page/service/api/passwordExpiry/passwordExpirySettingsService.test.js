@@ -167,7 +167,7 @@ describe("PasswordExpiry service", () => {
       const expectedId = uuid();
       mockAuthenticatedApiRequest(
         apiClientOptions,
-        new RegExp(`/password-expiry\/settings\/${expectedId}\.json`),
+        new RegExp(`/password-expiry/settings/${expectedId}\\.json`),
         () => {
           throw new Error("Something went wrong");
         },
