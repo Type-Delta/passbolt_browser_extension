@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import {ROOT, assertFile, readJson} from "./lib/artifacts.mjs";
-import {APP_ROOT, EMBEDDED_MANIFEST, TEMPLATE_PATHS, assertManifest, base} from "./lib/frontend-overlay.mjs";
+import {APP_ROOT, EMBEDDED_MANIFEST, TEMPLATE_PATHS, assertBaseImage, assertManifest, base} from "./lib/frontend-overlay.mjs";
 
 const image = process.argv[2];
 const manifestPath = path.resolve(ROOT, process.argv[3] || "dist/server-frontend/MANIFEST.json");
@@ -28,7 +28,10 @@ const docker = (args) => execFileSync("docker", args, {encoding: "utf8"}).trim()
 const inspect = (reference) => JSON.parse(docker(["image", "inspect", reference]))[0];
 const stock = inspect(base.reference);
 const target = inspect(image);
-if (stock.Id !== base.imageId) throw new Error("Pinned base image ID mismatch");
+assertBaseImage(stock);
+if (target.Os !== stock.Os || target.Architecture !== stock.Architecture) {
+  throw new Error("Image changed the inherited platform");
+}
 for (const key of ["Entrypoint", "Cmd", "WorkingDir", "User", "Volumes", "ExposedPorts", "Env", "Healthcheck"]) {
   if (JSON.stringify(stock.Config[key]) !== JSON.stringify(target.Config[key])) {
     throw new Error(`Image changed inherited runtime configuration: ${key}`);
@@ -66,5 +69,5 @@ for (const file of TEMPLATE_PATHS) {
   docker(["run", "--rm", "--network", "none", "--user", "www-data", "--entrypoint", "php", image, "-l", `${APP_ROOT}/${file}`]);
 }
 console.log(`[verify-image] ${image}: ${manifest.files.length} file hashes/sizes, full embedded manifest, ${TEMPLATE_PATHS.length} PHP syntax checks pass as www-data`);
-console.log(`[verify-image] exact base ${stock.Id}; one frontend layer; inherited runtime unchanged`);
+console.log(`[verify-image] exact base ${base.reference}; platform=${base.platform}; one frontend layer; inherited runtime unchanged`);
 console.log(`[verify-image] revision=${manifest.server.frontendRevision} localOnly=${manifest.ui.localOnly}`);

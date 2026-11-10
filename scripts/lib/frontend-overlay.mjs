@@ -37,6 +37,9 @@ export const TEMPLATE_PATHS = [
 export const base = readJson(path.join(ROOT, "deploy/passbolt-frontend/base-image.json"));
 if (!/^passbolt\/passbolt@sha256:[a-f0-9]{64}$/.test(base.reference) ||
     !/^sha256:[a-f0-9]{64}$/.test(base.imageId) ||
+    !/^[a-z0-9]+\/[a-z0-9]+$/.test(base.platform) ||
+    !Array.isArray(base.rootfsLayers) || base.rootfsLayers.length === 0 ||
+    base.rootfsLayers.some((layer) => !/^sha256:[a-f0-9]{64}$/.test(layer)) ||
     JSON.stringify(Object.keys(base.templateSha256).sort()) !== JSON.stringify([...TEMPLATE_PATHS].sort())) {
   throw new Error("Invalid immutable base pin or template allowlist");
 }
@@ -87,10 +90,22 @@ export const assertManifest = (manifest) => {
       TEMPLATE_PATHS.some((file) => !seen.has(file))) throw new Error("Incomplete frontend overlay");
 };
 
+export const assertBaseImage = (image) => {
+  if (!Array.isArray(image?.RepoDigests) || !image.RepoDigests.includes(base.reference)) {
+    throw new Error("Pinned base image repository digest mismatch");
+  }
+  if (`${image.Os}/${image.Architecture}` !== base.platform) {
+    throw new Error("Pinned base image platform mismatch");
+  }
+  if (image.RootFS?.Type !== "layers" || JSON.stringify(image.RootFS.Layers) !== JSON.stringify(base.rootfsLayers)) {
+    throw new Error("Pinned base image ordered layers mismatch");
+  }
+};
+
 // Reviewed stock copies must match both the pin and the immutable base image.
 export const stageTemplates = (rootfs, revision) => {
-  const actual = execFileSync("docker", ["image", "inspect", base.reference, "--format", "{{.Id}}"], {encoding: "utf8"}).trim();
-  if (actual !== base.imageId) throw new Error("Pinned base image ID mismatch");
+  const actual = JSON.parse(execFileSync("docker", ["image", "inspect", base.reference], {encoding: "utf8"}))[0];
+  assertBaseImage(actual);
   const sources = TEMPLATE_PATHS.map((file) => {
     const source = fs.readFileSync(path.join(ROOT, "deploy/passbolt-frontend", file));
     if (createHash("sha256").update(source).digest("hex") !== base.templateSha256[file]) {

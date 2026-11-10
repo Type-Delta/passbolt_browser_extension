@@ -112,6 +112,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Verify immutable frontend base guard
+        run: node --test scripts/lib/frontend-overlay.test.mjs
+
       - name: Unit tests
         run: npm run test:unit -- --runInBand
 
