@@ -35,6 +35,13 @@ class Scripting {
    * @param {CSSInjection} options
    */
   insertCSS(options) {
+    if (typeof options.css === "string") {
+      return this.browser.tabs.insertCSS(options.target.tabId, {
+        code: options.css,
+        runAt: "document_end",
+        frameId: options.target?.frameIds[0],
+      });
+    }
     let callback = null;
     const fileArray = options.files;
 

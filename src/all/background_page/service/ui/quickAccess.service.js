@@ -18,12 +18,89 @@ import WorkersSessionStorage from "../sessionStorage/workersSessionStorage";
 import WorkerEntity from "../../model/entity/worker/workerEntity";
 import BrowserService from "../browser/browserService";
 import { QUICKACCESS_POPUP_URL } from "../toolbar/toolbarService";
+import AccountOnboardingService from "../account/accountOnboardingService";
+import PortManager from "../../sdk/port/portManager";
 
 /** The default quickaccesss window height */
 const QUICKACCESS_WINDOW_HEIGHT = 400;
 
 /** The default quickaccesss window width */
 const QUICKACCESS_WINDOW_WIDTH = 380;
+
+/** Call only after authorizing the originating UI. The new tab inherits no foreground account UI state. */
+async function openAddAccountTab(input = {}, worker) {
+  const generation = worker.port.accountGeneration;
+  const assertCurrent = () => {
+    AccountContext.assert(generation);
+    if (PortManager.getPortById(worker.port._port.name) !== worker.port) {
+      throw new Error("The originating window was closed. Open the extension to try again.");
+    }
+  };
+  return AccountContext.run(generation, async () => {
+    assertCurrent();
+    const sourceUrl = worker.tab?.url;
+    const fromPage = sourceUrl?.startsWith("https:");
+    const source = fromPage
+      ? await browser.tabs.get(worker.tab.id)
+      : ((await browser.tabs.query({ active: true, currentWindow: true })) || [])[0];
+    assertCurrent();
+    if (fromPage) {
+      let sameSource = source?.id === worker.tab.id && source.url === sourceUrl;
+      if (["App", "Auth"].includes(worker.name) && source?.id === worker.tab.id) {
+        const account = await SavedAccountRegistry.active();
+        const current = new URL(source.url);
+        const base = new URL(account.domain);
+        sameSource =
+          current.origin === base.origin &&
+          (current.pathname === base.pathname || current.pathname.startsWith(`${base.pathname.replace(/\/$/, "")}/`));
+      }
+      assertCurrent();
+      if (!sameSource) {
+        throw new Error("The source page changed. Open onboarding from its current page.");
+      }
+    }
+    const domain =
+      input.domain === undefined
+        ? await AccountOnboardingService.suggestedServer(source?.url, assertCurrent)
+        : SavedAccountRegistry.canonicalDomain(input.domain);
+    const state = await SavedAccountRegistry.read();
+    assertCurrent();
+    const workerId = uuidv4();
+    const parameters = [
+      { name: "uiMode", value: "tab" },
+      { name: "feature", value: "add-account" },
+    ];
+    if (domain) {
+      parameters.push({ name: "domain", value: domain });
+    }
+    const url = await buildDetachedQuickaccessUrl(parameters, workerId);
+    assertCurrent();
+    let tab;
+    try {
+      tab = await browser.tabs.create({
+        url: "about:blank",
+        active: false,
+        ...(Number.isInteger(source?.windowId) ? { windowId: source.windowId } : {}),
+      });
+      // Authorized creation transfers completion to this reservation: focusing it can close the toolbar popup.
+      AccountContext.assert(generation);
+      await addWorkerQuickAccess(workerId, tab.id, state.active_account_id);
+      AccountContext.assert(generation);
+      await browser.tabs.update(tab.id, { url, active: true });
+      AccountContext.assert(generation);
+      return { tab_id: tab.id };
+    } catch (error) {
+      await WorkersSessionStorage.deleteById(workerId);
+      if (tab?.id !== undefined) {
+        const current = await browser.tabs.get(tab.id).catch(() => null);
+        if (current?.url === "about:blank" || current?.url === url) {
+          await browser.tabs.remove(tab.id).catch(() => {});
+        }
+      }
+      throw error;
+    }
+  });
+}
 
 /**
  * Open the quick access in a detached mode
@@ -152,6 +229,7 @@ async function open(queryParameters = []) {
 }
 
 export const QuickAccessService = {
+  openAddAccountTab,
   openInDetachedMode,
   openInAttachedMode,
   isAttachedModeAvailable,

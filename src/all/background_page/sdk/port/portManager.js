@@ -131,6 +131,32 @@ class PortManager {
     return Boolean(worker) && worker.name === role && this.isKnownPortSender(new WorkerEntity(worker), sender);
   }
 
+  /** Secret-bearing onboarding utilities require a registered, top-level full-tab Quick Access worker. */
+  async isOnboardingSender(role, sender, portId) {
+    if (role !== "QuickAccess" || !sender?.tab || sender.frameId !== 0) {
+      return false;
+    }
+    try {
+      const url = new URL(sender.url);
+      const tab = new URL(sender.tab.url);
+      if (
+        url.href !== tab.href ||
+        url.href.split(/[?#]/)[0] !== browser.runtime.getURL("/webAccessibleResources/quickaccess.html") ||
+        url.searchParams.get("feature") !== "add-account" ||
+        url.searchParams.get("uiMode") !== "tab" ||
+        url.searchParams.get("passbolt") !== portId
+      ) {
+        return false;
+      }
+      const worker = await WorkersSessionStorage.getWorkerById(portId);
+      return (
+        Boolean(worker) && worker.name === "QuickAccess" && this.isKnownPortSender(new WorkerEntity(worker), sender)
+      );
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Is known port sender
    * @param {WorkerEntity} worker The worker

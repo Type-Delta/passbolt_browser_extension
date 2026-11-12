@@ -25,6 +25,8 @@ import ResourceLocalStorage from "../local_storage/resourceLocalStorage";
 import MetadataKeysSessionStorage from "../session_storage/metadataKeysSessionStorage";
 import SessionKeysBundlesSessionStorageService from "../sessionStorage/sessionKeysBundlesSessionStorageService";
 import KeepSessionAliveService from "../session_storage/keepSessionAliveService";
+import SavedServerRegistry from "./savedServerRegistry";
+import { pgpKeys } from "passbolt-styleguide/test/fixture/pgpKeys/keys";
 
 jest.mock("./accountApiGuard", () => ({ assertAuthenticatedAccount: jest.fn(), findAuthenticatedUser: jest.fn() }));
 
@@ -341,6 +343,77 @@ it("enrolls an encrypted key only after stock-API key proof and exact resolved u
   ]);
   expect(AuthLogoutService.prototype.logout).toHaveBeenCalledTimes(1);
   expect(AuthVerifyServerChallengeService.prototype.verifyAndValidateServerChallenge).toHaveBeenCalledTimes(1);
+});
+
+it("requires a chosen token before onboarding can begin account authentication", async () => {
+  const { input } = enrollmentFixture();
+  await expect(SavedAccountsService.add(input, undefined, { onboarding: true })).rejects.toThrow();
+  expect(AuthLogoutService.prototype.logout).not.toHaveBeenCalled();
+});
+
+it("saves the chosen security token after a verified onboarding import", async () => {
+  const { user, input } = enrollmentFixture();
+  findAuthenticatedUser.mockResolvedValue(user);
+  await SavedServerRegistry.remember({
+    domain: input.domain,
+    server_key_fingerprint: pgpKeys.server.fingerprint,
+    checked_at: Date.now(),
+  });
+  const token = { code: "CUS", color: "#123456", textcolor: "#ffffff" };
+  const result = await SavedAccountsService.add(
+    { ...input, security_token: token, expected_server_key_fingerprint: pgpKeys.server.fingerprint },
+    undefined,
+    { onboarding: true },
+  );
+  expect(result.requires_unlock).toBe(false);
+  expect((await SavedAccountRegistry.active()).securityToken.toDto()).toEqual(token);
+});
+
+it("requires an explicitly verified server before the new flow can authenticate", async () => {
+  const { input } = enrollmentFixture();
+  await expect(
+    SavedAccountsService.add(
+      {
+        ...input,
+        security_token: { code: "CUS", color: "#123456", textcolor: "#ffffff" },
+        expected_server_key_fingerprint: pgpKeys.server.fingerprint,
+      },
+      undefined,
+      { onboarding: true },
+    ),
+  ).rejects.toThrow("Verify the server");
+  expect(AuthLogoutService.prototype.logout).not.toHaveBeenCalled();
+});
+
+it("rejects a changed preflight fingerprint before logout or GPGAuth challenges", async () => {
+  const { user, input } = enrollmentFixture();
+  findAuthenticatedUser.mockResolvedValue(user);
+  await SavedServerRegistry.remember({
+    domain: input.domain,
+    server_key_fingerprint: pgpKeys.server.fingerprint,
+    checked_at: Date.now(),
+  });
+  AuthVerifyServerKeyService.prototype.getServerKey.mockResolvedValue({ armored_key: pgpKeys.ada.public });
+  await expect(
+    SavedAccountsService.add(
+      {
+        ...input,
+        security_token: { code: "CUS", color: "#123456", textcolor: "#ffffff" },
+        expected_server_key_fingerprint: pgpKeys.server.fingerprint,
+      },
+      undefined,
+      { onboarding: true },
+    ),
+  ).rejects.toThrow("server key changed");
+  expect(AuthLogoutService.prototype.logout).not.toHaveBeenCalled();
+  expect(AuthVerifyServerChallengeService.prototype.verifyAndValidateServerChallenge).not.toHaveBeenCalled();
+});
+
+it("retains a server when its last account is removed before any account list was opened", async () => {
+  const account = await SavedAccountRegistry.save(new AccountEntity(defaultAccountDto()));
+  const list = await SavedAccountsService.remove(account.id);
+  expect(list.accounts).toEqual([]);
+  expect(list.servers).toContainEqual({ domain: account.domain });
 });
 
 it("enrolls a newly visited backend after discovery initializes its CSRF cookie", async () => {

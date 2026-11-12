@@ -8,6 +8,16 @@ The frontend image retains the Passbolt CE 5.16 backend. Saved-account enrollmen
 
 Backend URLs must use HTTPS, including migrated accounts. Saved-account switching takes two clicks inside the client while the selected account's unlock session remains valid. A new account and a login without remembering the passphrase use a 60-second unlock. The normal remember option retains that account's chosen timeout; switching does not extend it. Expiration requires the passphrase and any server-required MFA again, but does not require another private-key import.
 
+## Account enrollment
+
+The popup groups saved accounts by their full server URL. **Add account** opens a normal extension tab, including when launched from the vault's account menu. Key import and passphrase entry take place in that tab.
+
+1. **Server:** choose a saved server or enter its HTTPS address. Continue verifies the Passbolt endpoint and server key, then remembers the server even if account enrollment is cancelled.
+2. **Account:** enter the email address and import the encrypted private key or recovery-kit file. This checks the key locally; the account identity is confirmed during authentication.
+3. **Unlock:** choose the security token and use the existing passphrase login. A server requiring TOTP continues through its native verification page before the account is saved.
+
+The initial enrollment does not offer remember-me. Use the normal login afterward to choose a remembered unlock. When an authenticated vault page has no extension accounts, the extension offers a first-use prompt that opens the same enrollment tab.
+
 ## Pinned UI input
 
 `passbolt-styleguide` is consumed from `file:vendor/passbolt-styleguide.tgz`. The generated tarball is ignored by Git and must be staged before `npm ci`.

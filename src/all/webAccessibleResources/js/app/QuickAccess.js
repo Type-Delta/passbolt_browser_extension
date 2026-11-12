@@ -14,6 +14,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ExtQuickAccess from "passbolt-styleguide/src/react-quickaccess/ExtQuickAccess";
+import ExtAddAccount from "passbolt-styleguide/src/react-extension/ExtAddAccount";
 import Port from "../lib/port";
 
 async function main() {
@@ -34,6 +35,11 @@ async function main() {
 
   const storage = browser.storage;
   const domContainer = document.querySelector("#quickaccess-container");
+  const root = createRoot(domContainer);
+  if (query.get("uiMode") === "tab" && query.get("feature") === "add-account") {
+    root.render(<ExtAddAccount port={port} storage={storage} domainHint={query.get("domain")} />);
+    return;
+  }
   // Extract parameters from the url.
   const urlSearchParams = new URLSearchParams(window.location.search);
   const bootstrapFeature = urlSearchParams.get("feature");
@@ -41,7 +47,6 @@ async function main() {
   const openerTabId = urlSearchParams.get("tabId");
   const detached = urlSearchParams.get("uiMode") === "detached";
 
-  const root = createRoot(domContainer);
   root.render(
     <ExtQuickAccess
       port={port}

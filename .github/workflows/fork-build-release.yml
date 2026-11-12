@@ -115,6 +115,9 @@ jobs:
       - name: Verify immutable frontend base guard
         run: node --test scripts/lib/frontend-overlay.test.mjs
 
+      - name: Content-script DOM tests
+        run: node node_modules/jest/bin/jest.js --config test/jest.dom.config.cjs --runInBand --no-cache
+
       - name: Unit tests
         run: npm run test:unit -- --runInBand
 

@@ -12,9 +12,7 @@
  * @since         3.6.0
  */
 
-import { OpenpgpAssertion } from "../../utils/openpgp/openpgpAssertions";
-import i18n from "../../sdk/i18n";
-import GetGpgKeyInfoService from "../../service/crypto/getGpgKeyInfoService";
+import ValidatePrivateGpgKeyService from "../../service/crypto/validatePrivateGpgKeyService";
 
 class ValidatePrivateGpgKeyRecoverController {
   /**
@@ -53,20 +51,7 @@ class ValidatePrivateGpgKeyRecoverController {
    * @throws {Error} if the key is decrypted.
    */
   async exec(armoredKey) {
-    const key = await OpenpgpAssertion.readKeyOrFail(armoredKey);
-    OpenpgpAssertion.assertEncryptedPrivateKey(key);
-
-    const keyInfo = await GetGpgKeyInfoService.getKeyInfo(key);
-
-    if (!keyInfo.isValid) {
-      console.warn("The private key should be a valid openpgp key.");
-    }
-
-    if (keyInfo.revoked) {
-      throw new Error(i18n.t("The private key should not be revoked."));
-    } else if (keyInfo.isExpired) {
-      throw new Error(i18n.t("The private key should not be expired."));
-    }
+    await ValidatePrivateGpgKeyService.validate(armoredKey);
   }
 }
 

@@ -38,6 +38,10 @@ import Keyring from "../../model/keyring";
 import toolbarService from "../toolbar/toolbarService";
 import User from "../../model/user";
 import { Config } from "../../model/config";
+import SavedServerRegistry from "./savedServerRegistry";
+import AccountOnboardingService from "./accountOnboardingService";
+import SecurityTokenEntity from "../../model/entity/securityToken/securityTokenEntity";
+import WorkerEntity from "../../model/entity/worker/workerEntity";
 
 class SavedAccountsService {
   static navigationContexts = new WeakMap();
@@ -45,9 +49,11 @@ class SavedAccountsService {
     return new ApiClientOptions().setBaseUrl(domain);
   }
 
-  static async list(port) {
+  static async list(port, { reconcilePending = true, suggestServer = true } = {}) {
     // Listing remains available during a network outage; identity failures never save the pending key.
-    await this.reconcilePending(port).catch(() => null);
+    if (reconcilePending) {
+      await this.reconcilePending(port).catch(() => null);
+    }
     const pending = await this.pending();
     const state = await SavedAccountRegistry.read();
     const accounts = await Promise.all(
@@ -63,14 +69,15 @@ class SavedAccountsService {
         };
       }),
     );
-    const suggestion = accounts.length === 0 ? await this.suggestedServer() : null;
+    const servers = await SavedServerRegistry.read();
+    const suggestion = suggestServer && accounts.length === 0 ? await this.suggestedServer() : null;
     return {
       active_account_id: state.active_account_id,
       accounts,
       pending: pending
         ? { domain: pending.account.domain, username: pending.account.username, expires_at: pending.expires }
         : null,
-      servers: [...new Set([...accounts.map((account) => account.domain), ...(suggestion ? [suggestion] : [])])].map(
+      servers: [...new Set([...servers.map((server) => server.domain), ...(suggestion ? [suggestion] : [])])].map(
         (domain) => ({ domain }),
       ),
     };
@@ -81,20 +88,7 @@ class SavedAccountsService {
     if (!tab?.url) {
       return null;
     }
-    try {
-      const page = new URL(tab.url);
-      if (!/\/(?:app|auth|mfa)(?:\/|$)/.test(page.pathname)) {
-        return null;
-      }
-      const path = page.pathname.replace(/\/(?:app|auth|mfa)(?:\/.*)?$/, "");
-      const domain = SavedAccountRegistry.canonicalDomain(`${page.origin}${path}`);
-      // The current tab is only a hint after it proves to be a Passbolt API. Never list arbitrary sites.
-      const key = await new AuthVerifyServerKeyService(this.options(domain)).getServerKey();
-      await OpenpgpAssertion.readKeyOrFail(key.armored_key);
-      return domain;
-    } catch {
-      return null;
-    }
+    return AccountOnboardingService.suggestedServer(tab.url);
   }
 
   static async clearWorkingState() {
@@ -175,7 +169,71 @@ class SavedAccountsService {
     }
   }
 
-  static async transition(port, operation, targetAccountId, expectedPending) {
+  /** Restore only the initiating onboarding worker after its own failed enrollment fully rolled back. */
+  static async recoverOnboardingWorker(port, original) {
+    const generation = original.generation + 1;
+    return AccountContext.run(generation, async () => {
+      const assertCurrent = () => {
+        AccountContext.assert(generation);
+        const sender = port._port.sender;
+        if (
+          port.accountGeneration !== original.generation ||
+          PortManager.getPortById(original.worker.id) !== port ||
+          port._port.name !== original.worker.id ||
+          original.worker.name !== "QuickAccess" ||
+          original.worker.frameId !== 0 ||
+          sender?.url !== original.url ||
+          sender.tab?.url !== original.url ||
+          sender.tab?.id !== original.worker.tabId ||
+          sender.frameId !== 0
+        ) {
+          throw new Error("The initiating onboarding window is no longer available.");
+        }
+      };
+      assertCurrent();
+      const state = await SavedAccountRegistry.read();
+      assertCurrent();
+      if (state.active_account_id !== (original.worker.account_id || null)) {
+        throw new Error("The restored account no longer matches the onboarding window.");
+      }
+      const sender = port._port.sender;
+      if (!(await PortManager.isKnownPortSender(new WorkerEntity(original.worker), sender))) {
+        throw new Error("The onboarding sender no longer matches its original worker.");
+      }
+      assertCurrent();
+      if (await WorkersSessionStorage.getWorkerById(original.worker.id)) {
+        throw new Error("The onboarding worker was replaced.");
+      }
+      assertCurrent();
+      const tab = await browser.tabs.get(original.worker.tabId);
+      assertCurrent();
+      if (tab?.id !== original.worker.tabId || tab.url !== original.url) {
+        throw new Error("The onboarding tab navigated away.");
+      }
+      await WorkersSessionStorage.addWorker(
+        new WorkerEntity({ ...original.worker, status: WorkerEntity.STATUS_CONNECTED }),
+      );
+      try {
+        assertCurrent();
+        if (!(await PortManager.isOnboardingSender("QuickAccess", sender, original.worker.id))) {
+          throw new Error("The onboarding worker could not be restored.");
+        }
+        assertCurrent();
+        const liveTab = await browser.tabs.get(original.worker.tabId);
+        assertCurrent();
+        if (liveTab?.id !== original.worker.tabId || liveTab.url !== original.url) {
+          throw new Error("The onboarding tab navigated away while restoring its worker.");
+        }
+        port.accountGeneration = generation;
+      } catch (error) {
+        await WorkersSessionStorage.deleteById(original.worker.id);
+        throw error;
+      }
+    });
+  }
+
+  static async transition(port, operation, targetAccountId, expectedPending, onboardingRetry) {
+    let rolledBack = false;
     const result = await AccountContext.transition(async () => {
       if (expectedPending) {
         const current = await this.pending();
@@ -221,13 +279,30 @@ class SavedAccountsService {
         if (changesForeground) {
           await this.clearWorkingState();
         }
+        rolledBack = true;
         throw error;
       } finally {
         if (changesForeground && previous && !selected) {
           await this.resumeForegroundMaintenance(previous.id);
         }
       }
-    }, false);
+    }, false).catch(async (error) => {
+      if (onboardingRetry) {
+        try {
+          if (!rolledBack) {
+            throw error;
+          }
+          await this.recoverOnboardingWorker(port, onboardingRetry);
+        } catch {
+          const expired = new Error(
+            "This add-account session expired. Close this tab and reopen Add account from the extension.",
+          );
+          expired.name = "OnboardingSessionExpiredError";
+          throw expired;
+        }
+      }
+      throw error;
+    });
     if (result?.requires_unlock === false) {
       await toolbarService.handleUserLoggedIn();
     }
@@ -284,8 +359,18 @@ class SavedAccountsService {
     });
   }
 
-  static async add(input, port) {
+  static async add(input, port, { onboarding = false, assertCurrent = () => {} } = {}) {
     const domain = SavedAccountRegistry.canonicalDomain(input.domain);
+    const expectedFingerprint = input.expected_server_key_fingerprint?.toUpperCase();
+    if (onboarding) {
+      new SecurityTokenEntity(input.security_token);
+      const verified = (await SavedServerRegistry.read(assertCurrent)).find((server) => server.domain === domain);
+      if (!expectedFingerprint || verified?.server_key_fingerprint !== expectedFingerprint || !verified.checked_at) {
+        throw new Error("Verify the server before unlocking the imported key.");
+      }
+      await AccountOnboardingService.validatePrivateKey(input);
+      assertCurrent();
+    }
     if (typeof input.username !== "string" || typeof input.passphrase !== "string") {
       throw new Error("An email and passphrase are required.");
     }
@@ -296,66 +381,94 @@ class SavedAccountsService {
     }
     await DecryptPrivateKeyService.decrypt(privateKey, input.passphrase);
     const fingerprint = privateKey.getFingerprint().toUpperCase();
-    return this.transition(port, async (state) => {
-      const options = this.options(domain);
-      const serverKey = await new AuthVerifyServerKeyService(options).getServerKey();
-      const downloadedKey = await OpenpgpAssertion.readKeyOrFail(serverKey.armored_key);
-      const pinned = state.accounts.find((dto) => dto.domain === domain);
-      if (pinned) {
-        const pinnedKey = await OpenpgpAssertion.readKeyOrFail(pinned.server_public_armored_key);
-        if (pinnedKey.getFingerprint() !== downloadedKey.getFingerprint()) {
-          throw new Error("The saved server key changed. Verify the server before adding another account.");
+    assertCurrent();
+    let onboardingRetry;
+    if (onboarding && port) {
+      const generation = port.accountGeneration;
+      const worker = await WorkersSessionStorage.getWorkerById(port._port.name);
+      if (
+        !worker ||
+        worker.status !== WorkerEntity.STATUS_CONNECTED ||
+        !(await PortManager.isOnboardingSender("QuickAccess", port._port.sender, port._port.name))
+      ) {
+        const expired = new Error(
+          "This add-account session expired. Close this tab and reopen Add account from the extension.",
+        );
+        expired.name = "OnboardingSessionExpiredError";
+        throw expired;
+      }
+      assertCurrent();
+      onboardingRetry = { generation, worker: { ...worker }, url: port._port.sender.url };
+    }
+    return this.transition(
+      port,
+      async (state) => {
+        const options = this.options(domain);
+        const serverKey = await new AuthVerifyServerKeyService(options).getServerKey();
+        const downloadedKey = await OpenpgpAssertion.readKeyOrFail(serverKey.armored_key);
+        if (expectedFingerprint && downloadedKey.getFingerprint().toUpperCase() !== expectedFingerprint) {
+          throw new Error("The verified server key changed. Verify the server before adding another account.");
         }
-      }
-      // Discovery initializes the target's CSRF cookie before its first logout.
-      await new AuthLogoutService(options).logout();
-      await new AuthVerifyServerChallengeService(options).verifyAndValidateServerChallenge(
-        fingerprint,
-        serverKey.armored_key,
-      );
-      const provisionalUser = await new AuthVerifyLoginChallengeService(options).verifyAndValidateLoginChallenge(
-        fingerprint,
-        input.user_private_armored_key,
-        input.passphrase,
-      );
-      this.assertIdentity(provisionalUser, input.username, fingerprint);
-      let user;
-      try {
-        user = await findAuthenticatedUser(options, { checkMfa: true });
-      } catch (error) {
-        if (!(error instanceof MfaAuthenticationRequiredError)) {
-          throw error;
+        const pinned = state.accounts.find((dto) => dto.domain === domain);
+        if (pinned) {
+          const pinnedKey = await OpenpgpAssertion.readKeyOrFail(pinned.server_public_armored_key);
+          if (pinnedKey.getFingerprint() !== downloadedKey.getFingerprint()) {
+            throw new Error("The saved server key changed. Verify the server before adding another account.");
+          }
         }
-      }
-      if (user) {
-        this.assertIdentity(user, input.username, fingerprint);
-        if (user.id !== provisionalUser.id) {
-          throw new Error("The authenticated identity changed during enrollment.");
+        // Discovery initializes the target's CSRF cookie before its first logout.
+        await new AuthLogoutService(options).logout();
+        await new AuthVerifyServerChallengeService(options).verifyAndValidateServerChallenge(
+          fingerprint,
+          serverKey.armored_key,
+        );
+        const provisionalUser = await new AuthVerifyLoginChallengeService(options).verifyAndValidateLoginChallenge(
+          fingerprint,
+          input.user_private_armored_key,
+          input.passphrase,
+        );
+        this.assertIdentity(provisionalUser, input.username, fingerprint);
+        let user;
+        try {
+          user = await findAuthenticatedUser(options, { checkMfa: true });
+        } catch (error) {
+          if (!(error instanceof MfaAuthenticationRequiredError)) {
+            throw error;
+          }
         }
-      }
-      const requiresMfa = !user;
-      user = user || provisionalUser;
-      const account = new AccountEntity({
-        domain,
-        user_id: user.id,
-        username: user.username,
-        first_name: user.profile.first_name,
-        last_name: user.profile.last_name,
-        user_key_fingerprint: fingerprint,
-        user_public_armored_key: privateKey.toPublic().armor(),
-        user_private_armored_key: input.user_private_armored_key,
-        server_public_armored_key: serverKey.armored_key,
-        security_token: input.security_token || { code: "PB1", color: "#000000", textcolor: "#ffffff" },
-      });
-      if (requiresMfa) {
-        const pending = await this.savePending(account, input.passphrase, false);
-        return this.pendingResult(account, pending);
-      }
-      state.accounts = state.accounts.filter((dto) => SavedAccountRegistry.account(dto).id !== account.id);
-      state.accounts.push(account.toDto(AccountEntity.ALL_CONTAIN_OPTIONS));
-      await PassphraseStorageService.set(input.passphrase, 60, account.id);
-      return this.select(account, state);
-    });
+        if (user) {
+          this.assertIdentity(user, input.username, fingerprint);
+          if (user.id !== provisionalUser.id) {
+            throw new Error("The authenticated identity changed during enrollment.");
+          }
+        }
+        const requiresMfa = !user;
+        user = user || provisionalUser;
+        const account = new AccountEntity({
+          domain,
+          user_id: user.id,
+          username: user.username,
+          first_name: user.profile.first_name,
+          last_name: user.profile.last_name,
+          user_key_fingerprint: fingerprint,
+          user_public_armored_key: privateKey.toPublic().armor(),
+          user_private_armored_key: input.user_private_armored_key,
+          server_public_armored_key: serverKey.armored_key,
+          security_token: input.security_token || { code: "PB1", color: "#000000", textcolor: "#ffffff" },
+        });
+        if (requiresMfa) {
+          const pending = await this.savePending(account, input.passphrase, false);
+          return this.pendingResult(account, pending);
+        }
+        state.accounts = state.accounts.filter((dto) => SavedAccountRegistry.account(dto).id !== account.id);
+        state.accounts.push(account.toDto(AccountEntity.ALL_CONTAIN_OPTIONS));
+        await PassphraseStorageService.set(input.passphrase, 60, account.id);
+        return this.select(account, state);
+      },
+      undefined,
+      undefined,
+      onboardingRetry,
+    );
   }
 
   static assertIdentity(user, username, fingerprint) {
@@ -566,6 +679,7 @@ class SavedAccountsService {
         if (!account) {
           throw new Error("The saved account does not exist.");
         }
+        await SavedServerRegistry.read();
         if (state.active_account_id === accountId) {
           await new AuthLogoutService(this.options(account.domain)).logout();
         }
@@ -594,8 +708,8 @@ class SavedAccountsService {
     );
   }
 
-  static async publishChanged() {
-    const summary = await this.list();
+  static async publishChanged({ reconcilePending = true } = {}) {
+    const summary = await this.list(undefined, { reconcilePending, suggestServer: reconcilePending });
     const extensionUrl = browser.runtime.getURL("/");
     for (const port of Object.values(PortManager._ports)) {
       if (port._port.sender?.url?.startsWith(extensionUrl)) {

@@ -26,6 +26,7 @@ import InFormCallToActionPagemod from "./informCallToActionPagemod";
 import InFormMenuPagemod from "./informMenuPagemod";
 import AccountRecoveryBootstrapPagemod from "./accountRecoveryBootstrapPagemod";
 import AccountRecoveryPagemod from "./accountRecoveryPagemod";
+import AccountOnboardingPagemod from "./accountOnboardingPagemod";
 
 /**
  * The pagemod manager have the role of dispatching the process to the correct pagemod
@@ -43,6 +44,7 @@ class PagemodManager {
       AppBootstrapPagemod,
       AccountRecoveryBootstrapPagemod,
       PublicWebsiteSignInPagemod,
+      AccountOnboardingPagemod,
       // WebIntegration should always be under all bootstrap application
       WebIntegrationPagemod,
       RecoverPagemod,
