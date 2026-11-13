@@ -111,7 +111,28 @@ Tag builds and manual dispatches with `publish_release=true` attach the bundle t
 - unsigned Firefox developer ZIP;
 - matched web UI asset archive;
 - the exact styleguide tarball;
-- `BUILD-MANIFEST.json`, `RELEASE_NOTES.md`, `SHA256SUMS`, and Docker frontend metadata.
+- `BUILD-MANIFEST.json`, `RELEASE_NOTES.md`, `SHA256SUMS`, and Docker frontend metadata;
+- `CONTAINER-IMAGE.json` when the release image was published.
+
+### Docker Hub publication
+
+Only a `fork-v*` tag push or a manual dispatch with `publish_release=true` publishes a container image. Ordinary branch, pull-request and manual builds still build and verify the image but never log in to Docker Hub and never push.
+
+Configure two repository variables and one repository secret:
+
+- `DOCKERHUB_USERNAME`: the Docker Hub account used by the login action.
+- `DOCKERHUB_IMAGE`: the target repository as `namespace/repository`, for example `your-user/passbolt-frontend`.
+- `DOCKERHUB_TOKEN`: a repository secret with push permission.
+
+If any value is missing or the image name is not a lowercase `namespace/repository`, publication fails before the build with a clear error. The workflow never prints the values, and no credential is written to an artifact.
+
+A deployment can pull the published image instead of building the frontend locally. Publication reuses `passbolt-frontend:ci-<first 12 SHA characters>` exactly as built and verified by `deploy/passbolt-frontend/build-image.sh`. It does not rebuild from a Git context, so the generated overlay cannot be lost. The publisher tags that local image with the release tag and the full 40-character source commit, pushes both tags, derives the digest returned by the registry, pulls `namespace/repository@sha256:...` back, and runs the committed `scripts/verify-image.mjs` against the pulled digest and the current server manifest. It publishes no `latest` tag. The release tags are ordinary registry tags; the digest is the repeatable reference.
+
+`CONTAINER-IMAGE.json` in the release bundle records the repository, tags, digest and digest reference, image ID, platform, extension and UI commits, UI tarball hash, server manifest hash and base image. `npm run release:package -- --refresh` validates that receipt against this build and carries it into `BUILD-MANIFEST.json`, `SHA256SUMS` and the release notes. A build without a receipt keeps its previous bundle.
+
+For a tag push, the tag must resolve to the checked-out source commit. For a manual dispatch, an existing `release_tag` must also resolve to the checked-out commit; a missing tag may be created at that commit by the GitHub release job. Only `linux/amd64` is verified for the current base pin. Pull the digest reference recorded in the receipt rather than relying on a tag for deployment or rollback.
+
+Pulling this image only supplies the frontend layer. Some installations keep TLS and application configuration in the container's writable layer, so follow the existing stopped-recreate and restore procedure when replacing a running container. Do not replace a production deployment with a blind `docker compose up -d`.
 
 ### Chromium
 

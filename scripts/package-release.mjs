@@ -25,7 +25,8 @@ import {
   writeJson,
 } from "./lib/artifacts.mjs";
 
-import {validateContext} from "./lib/frontend-overlay.mjs";
+import {assertContainerImageReceipt, readContainerImageReceipt} from "./lib/container-image.mjs";
+import {base, validateContext} from "./lib/frontend-overlay.mjs";
 
 const options = parseOptions(process.argv.slice(2), {
   "--out": {key: "out"},
@@ -57,6 +58,18 @@ if (!options.refresh && fs.existsSync(outputDirectory)) {
   fs.rmSync(outputDirectory, {recursive: true, force: true});
 }
 fs.mkdirSync(outputDirectory, {recursive: true});
+
+// A registry receipt is optional; ordinary CI builds keep their existing bundle.
+const containerImage = readContainerImageReceipt(outputDirectory);
+if (containerImage) {
+  if (ui.localOnly) throw new Error("Refusing a registry receipt for a localOnly build");
+  assertContainerImageReceipt(containerImage, {
+    extensionCommit,
+    ui,
+    manifestSha256: sha256(serverManifestPath),
+    baseImage: base,
+  });
+}
 
 const findSingle = (directory, predicate, label) => {
   if (!fs.existsSync(directory)) {
@@ -161,6 +174,7 @@ const buildManifest = {
     frontendFileCount: serverManifest.files.length,
   },
   firefoxSigned: signedFirefox,
+  ...(containerImage ? {containerImage} : {}),
   artifacts,
 };
 writeJson(path.join(outputDirectory, "BUILD-MANIFEST.json"), buildManifest);
@@ -178,6 +192,7 @@ ${installNotes}
 - Extension source: \`${extensionCommit}\`${extensionDirty ? " (dirty working tree)" : ""}
 - UI source: \`${ui.commit}\` (${ui.version})
 - Stock server base: \`${serverManifest.server.baseImage}\`
+${containerImage ? `- Published frontend image: \`${containerImage.digestRef}\`` : ""}
 - Chromium extension ID: \`${extensionId}\`
 - Firefox add-on ID: \`${firefoxManifest.browser_specific_settings.gecko.id}\`
 
@@ -200,6 +215,19 @@ The unsigned ZIP is only for temporary development loading through \`about:debug
 ${signedFirefox ? "The signed XPI can be installed through Firefox's normal add-on installation flow for unlisted extensions." : ""}
 
 No upstream update URL is included. Updates come only from this fork's published releases or a Mozilla-signed unlisted build.
+
+${containerImage ? `## Published container image
+
+\`\`\`sh
+docker pull ${containerImage.digestRef}
+\`\`\`
+
+- Tags: ${containerImage.tags.map((name) => `\`${name}\``).join(", ")}
+- Digest: \`${containerImage.digest}\`
+- Platform: \`${containerImage.platform}\`
+
+\`CONTAINER-IMAGE.json\` records this registry result. Use the digest reference for repeatable pulls and rollback; the tags are ordinary retryable registry tags, not an immutability claim. Pulling this image does not replace the documented stopped-recreate procedure that preserves TLS and application configuration stored in the container writable layer.
+` : ""}
 
 ## Matched web UI
 
