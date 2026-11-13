@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/Type-Delta/passbolt_styleguide.git",
-  "commit": "d73114308716b9b52da2671b57c9ce0368c7217b",
+  "commit": "fb1cfcbd051cdcbd1e0a32a1ec0dfc425898030d",
   "ref": "feat/multi-account",
   "version": "5.17.2",
   "sourceDirty": false,
   "tarball": "vendor/passbolt-styleguide.tgz",
-  "tarballSha256": "934f8a54e44ce8a97ec9130844d1be1266b898c90ca15bcba8e774bf44a99df9",
-  "tarballIntegrity": "sha512-wRd72G2GNw8tyTvBiaEi9rYBrhgfbi9Zl7eWHkjw/XtTsky8KHkqJwZg5vC1Yu3GnM0VhE1fdsP3nBbzmGY9Rw=="
+  "tarballSha256": "fbc8604d6f10e4c0faefd09471aea313347886cd4e307b8eae5253519e13f81b",
+  "tarballIntegrity": "sha512-+e4WXACQ+Di+6vgrM1h/uQuX37wtKuVU9X9JEF0YEqXzFcsmtyodBMzcnebtp87SdWn51EV5E1HwoEivsFvTbw=="
 }
