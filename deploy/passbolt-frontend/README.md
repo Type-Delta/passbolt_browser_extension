@@ -40,6 +40,18 @@ The image verifier checks every listed file hash/size and symlink-free destinati
 
 Local acceptance remains explicitly `localOnly=true`; it cannot establish release provenance. Clean UI pinning, matched extension rebuilding and CI publication remain separate prerequisites.
 
+## Published release image
+
+Release builds can publish this exact verified local image to Docker Hub. The release publisher tags the image built by `build-image.sh`, pushes the release tag and the full source commit, records the registry digest, pulls that digest back and re-runs this directory's image verifier against the pulled reference. It does not rebuild from a Git context. See `docs/fork-build-release.md` for the repository variables and secret.
+
+The release bundle's `CONTAINER-IMAGE.json` carries the digest reference. Pull that reference instead of a mutable tag when deploying or rolling back:
+
+```sh
+docker pull <namespace>/<repository>@sha256:<digest>
+```
+
+Only `linux/amd64` is verified for the current base pin. A pulled image replaces the frontend layer only. Some installations keep TLS and application configuration in the container writable layer, so replace a running container with the existing stopped-recreate and restore procedure, preserving that configuration and persistent storage. Do not run a blind `docker compose up -d` against a current production deployment.
+
 ## Cache validation and rollout
 
 Fresh HTML from the six allowlisted templates uses the content revision for its asset query values and stylesheet/theme CSS requests. The native MFA page is server-rendered; only its stylesheet URL and CSS cache-version attribute change. Its forms and provider behavior remain stock. Existing tabs need fresh HTML. This does not claim to refresh already-running pages or prove a CDN includes queries in its cache key.

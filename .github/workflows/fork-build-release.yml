@@ -38,6 +38,37 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Configure Docker Hub release publishing
+        id: dockerhub-release
+        if: >-
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/fork-v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "$DOCKERHUB_USERNAME" ]] || missing+=("repository variable DOCKERHUB_USERNAME")
+          [[ -n "$DOCKERHUB_IMAGE" ]] || missing+=("repository variable DOCKERHUB_IMAGE")
+          [[ -n "$DOCKERHUB_TOKEN" ]] || missing+=("secret DOCKERHUB_TOKEN")
+          if ((${#missing[@]} > 0)); then
+            printf '::error::Docker Hub publishing is not configured; missing %s.\n' "${missing[*]}"
+            exit 1
+          fi
+          if [[ ! "$DOCKERHUB_IMAGE" =~ ^[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*$ ]]; then
+            echo "::error::Repository variable DOCKERHUB_IMAGE must be a lowercase namespace/repository name such as your-user/passbolt-frontend."
+            exit 1
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^fork-v[0-9A-Za-z][0-9A-Za-z._-]{0,120}$ ]]; then
+            echo "::error::Docker Hub publishing requires a fork-v* release tag."
+            exit 1
+          fi
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Validate UI pin
         id: ui-pin
         shell: bash
@@ -115,6 +146,9 @@ jobs:
       - name: Verify immutable frontend base guard
         run: node --test scripts/lib/frontend-overlay.test.mjs
 
+      - name: Verify container image publisher guards
+        run: node --test scripts/lib/container-image.test.mjs
+
       - name: Content-script DOM tests
         run: node node_modules/jest/bin/jest.js --config test/jest.dom.config.cjs --runInBand --no-cache
 
@@ -133,6 +167,40 @@ jobs:
         run: |
           ./deploy/passbolt-frontend/build-image.sh \
             --tag "passbolt-frontend:ci-${GITHUB_SHA::12}"
+
+      - name: Log in to Docker Hub
+        if: steps.dockerhub-release.outputs.tag != ''
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Publish verified frontend image to Docker Hub
+        if: steps.dockerhub-release.outputs.tag != ''
+        env:
+          DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
+          RELEASE_TAG: ${{ steps.dockerhub-release.outputs.tag }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            --image "passbolt-frontend:ci-${GITHUB_SHA::12}"
+            --repository "$DOCKERHUB_IMAGE"
+            --tag "$RELEASE_TAG"
+            --source-commit "$SOURCE_COMMIT"
+            --context dist/server-frontend
+            --manifest dist/server-frontend/MANIFEST.json
+            --out dist/release
+          )
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            args+=(--require-existing-tag)
+          fi
+          node scripts/publish-image.mjs "${args[@]}"
+
+      - name: Include container image receipt in the release bundle
+        if: steps.dockerhub-release.outputs.tag != ''
+        run: npm run release:package -- --refresh
 
       - name: Sign Firefox XPI with Mozilla (optional)
         id: sign-firefox
@@ -208,6 +276,7 @@ jobs:
           test -n "$RELEASE_TAG"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" dist/release/* --clobber
+            gh release edit "$RELEASE_TAG" --notes-file dist/release/RELEASE_NOTES.md
           else
             gh release create "$RELEASE_TAG" dist/release/* \
               --title "$RELEASE_TAG" \
