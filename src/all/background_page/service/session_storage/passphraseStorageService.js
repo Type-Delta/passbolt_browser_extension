@@ -24,26 +24,48 @@ class PassphraseStorageService {
    * @param {number|null} timeout duration in second before flushing passphrase
    * @return {Promise<void>}
    */
-  static async set(passphrase, timeout) {
-    await navigator.locks.request(PASSPHRASE_STORAGE_KEY, async () => {
-      await browser.storage.session.set({ [PASSPHRASE_STORAGE_KEY]: passphrase });
-    });
-
-    PassphraseStorageService._clearFlushAlarms();
-    if (timeout >= 0) {
-      browser.alarms.create(PassphraseStorageService.ALARM_NAME, {
-        when: Date.now() + timeout * 1000,
-      });
+  static async slot(accountId) {
+    if (accountId === undefined) {
+      const state = (await browser.storage.local.get("saved-accounts-v1"))["saved-accounts-v1"];
+      accountId = state?.active_account_id;
     }
+    return accountId ? `${PASSPHRASE_STORAGE_KEY}:${accountId}` : PASSPHRASE_STORAGE_KEY;
+  }
+
+  static alarm(slot) {
+    return slot === PASSPHRASE_STORAGE_KEY ? PASSPHRASE_FLUSH_ALARM : `${PASSPHRASE_FLUSH_ALARM}:${slot}`;
+  }
+
+  static async set(passphrase, timeout, accountId) {
+    const slot = await this.slot(accountId);
+    const expires = timeout >= 0 ? Date.now() + timeout * 1000 : null;
+    await navigator.locks.request(slot, async () => {
+      await browser.storage.session.set({ [slot]: { passphrase, expires } });
+      await browser.alarms.clear(this.alarm(slot));
+      if (expires !== null) {
+        await browser.alarms.create(this.alarm(slot), { when: expires });
+      }
+    });
   }
 
   /**
    * Retrieve the passphrase from the session memory if any.
    * @return {Promise<string|null>}
    */
-  static async get() {
-    const storedData = await browser.storage.session.get(PASSPHRASE_STORAGE_KEY);
-    return storedData?.[PASSPHRASE_STORAGE_KEY] || null;
+  static async get(accountId) {
+    const slot = await this.slot(accountId);
+    return navigator.locks.request(slot, async () => {
+      const data = (await browser.storage.session.get(slot))[slot];
+      if (!data) {
+        return null;
+      }
+      // Old unscoped session values cannot be attributed safely after migration.
+      if (typeof data !== "object" || (data.expires !== null && Date.now() >= data.expires)) {
+        await browser.storage.session.remove(slot);
+        return null;
+      }
+      return data.passphrase || null;
+    });
   }
 
   /**
@@ -64,38 +86,36 @@ class PassphraseStorageService {
    * Removes the stored passphrase from the session memory and resets alarms.
    * @return {Promise<void>}
    */
-  static async flush() {
+  static async flush(accountId) {
     Log.write({ level: "debug", message: "PassphraseStorageService flushed" });
-    return Promise.all([PassphraseStorageService.flushPassphrase(), PassphraseStorageService._clearFlushAlarms()]);
+    const slot = await this.slot(accountId);
+    await navigator.locks.request(slot, async () => {
+      await browser.storage.session.remove(slot);
+      await browser.alarms.clear(this.alarm(slot));
+    });
   }
 
-  /**
-   * Flush the registered passphrase without removing any alarms.
-   * @returns {Promise<void>}
-   */
-  static flushPassphrase() {
-    return navigator.locks.request(PASSPHRASE_STORAGE_KEY, () =>
-      browser.storage.session.remove(PASSPHRASE_STORAGE_KEY),
-    );
+  static async flushPassphrase() {
+    const slot = await this.slot();
+    return navigator.locks.request(slot, () => browser.storage.session.remove(slot));
   }
 
-  /**
-   * Clear all the alarms and listeners configured for flushing the passphrase if any.
-   * @returns {Promise<void>}
-   * @private
-   */
-  static _clearFlushAlarms() {
-    return browser.alarms.clear(PassphraseStorageService.ALARM_NAME);
+  static async _clearFlushAlarms() {
+    return browser.alarms.clear(this.alarm(await this.slot()));
   }
 
-  /**
-   * Flush the current stored passphrase when the PassphraseStorageFlush alarm triggers.
-   * This is a top-level alarm callback
-   * @param {Alarm} alarm
-   */
   static async handleFlushEvent(alarm) {
-    if (alarm.name === PassphraseStorageService.ALARM_NAME) {
-      await PassphraseStorageService.flush();
+    if (alarm.name === PASSPHRASE_FLUSH_ALARM) {
+      await this.flush(null);
+    } else if (alarm.name.startsWith(`${PASSPHRASE_FLUSH_ALARM}:passphrase:`)) {
+      const slot = alarm.name.slice(`${PASSPHRASE_FLUSH_ALARM}:`.length);
+      // A delayed alarm from an earlier unlock must not destroy a refreshed session.
+      await navigator.locks.request(slot, async () => {
+        const data = (await browser.storage.session.get(slot))[slot];
+        if (data?.expires !== null && data?.expires <= Date.now()) {
+          await browser.storage.session.remove(slot);
+        }
+      });
     }
   }
 

@@ -14,7 +14,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -43,7 +43,9 @@ describe("SessionKeysBundlesApiService", () => {
       expect.assertions(2);
 
       const apiSessionKeysBundlesCollection = defaultSessionKeysBundlesDtos();
-      fetch.doMockOnceIf(/metadata\/session-keys/, () => mockApiResponse(apiSessionKeysBundlesCollection));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, () =>
+        mockApiResponse(apiSessionKeysBundlesCollection),
+      );
 
       const service = new SessionKeysBundlesApiService(apiClientOptions);
       const resultDto = await service.findAll();
@@ -54,7 +56,9 @@ describe("SessionKeysBundlesApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/session-keys/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new SessionKeysBundlesApiService(apiClientOptions);
 
@@ -63,7 +67,7 @@ describe("SessionKeysBundlesApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/session-keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -79,7 +83,7 @@ describe("SessionKeysBundlesApiService", () => {
 
       const sessionKeysBundleDto = minimalSessionKeysBundleDto();
       const sessionKeysBundle = new SessionKeysBundleEntity(sessionKeysBundleDto);
-      fetch.doMockOnceIf(/metadata\/session-keys/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, async (req) => {
         expect(req.method).toEqual("POST");
         const reqPayload = await req.json();
         return mockApiResponse(defaultSessionKeysBundleDto(reqPayload));
@@ -105,10 +109,14 @@ describe("SessionKeysBundlesApiService", () => {
       expect.assertions(1);
 
       const sessionKeysBundleId = uuidv4();
-      fetch.doMockOnceIf(new RegExp(`/metadata/session-keys/${sessionKeysBundleId}\\.json`), async (req) => {
-        expect(req.method).toEqual("DELETE");
-        return mockApiResponse({});
-      });
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/metadata/session-keys/${sessionKeysBundleId}\\.json`),
+        async (req) => {
+          expect(req.method).toEqual("DELETE");
+          return mockApiResponse({});
+        },
+      );
 
       const service = new SessionKeysBundlesApiService(apiClientOptions);
       await service.delete(sessionKeysBundleId);
@@ -129,11 +137,15 @@ describe("SessionKeysBundlesApiService", () => {
 
       const sessionKeysBundleDto = defaultSessionKeysBundleDto();
       const sessionKeysBundle = new SessionKeysBundleEntity(sessionKeysBundleDto);
-      fetch.doMockOnceIf(new RegExp(`/metadata/session-keys/${sessionKeysBundleDto.id}\\.json`), async (req) => {
-        expect(req.method).toEqual("PUT");
-        const reqPayload = await req.json();
-        return mockApiResponse(reqPayload);
-      });
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/metadata/session-keys/${sessionKeysBundleDto.id}\\.json`),
+        async (req) => {
+          expect(req.method).toEqual("PUT");
+          const reqPayload = await req.json();
+          return mockApiResponse(reqPayload);
+        },
+      );
 
       const service = new SessionKeysBundlesApiService(apiClientOptions);
       const resultDto = await service.update(sessionKeysBundleDto.id, sessionKeysBundle);

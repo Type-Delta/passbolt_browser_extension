@@ -60,7 +60,7 @@ class StartLoopAuthSessionCheckService {
     );
     const activeSessionEntity = await findAndUpdateActiveSessionLocalStorageService.findAndUpdateAuthenticationStatus();
     if (!activeSessionEntity.isAuthenticated) {
-      PostLogoutService.exec();
+      await PostLogoutService.exec();
     }
     await findAndUpdateActiveSessionLocalStorageService.updateLastSeenOnline(new Date());
   }

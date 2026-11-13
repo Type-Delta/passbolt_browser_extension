@@ -98,7 +98,9 @@ describe("OnExtensionInstalledController", () => {
       jest.spyOn(OnExtensionInstalledController, "onUpdate");
       jest.spyOn(WebNavigationService, "exec");
       jest.spyOn(browser.tabs, "query").mockImplementationOnce(() => Promise.resolve(tabs));
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => {});
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
       // process
       await OnExtensionInstalledController.exec(details);
@@ -153,7 +155,9 @@ describe("OnExtensionInstalledController", () => {
       jest.spyOn(OnExtensionInstalledController, "onBrowserUpdate");
       jest.spyOn(User.getInstance(), "isValid").mockImplementation(() => true);
       jest.spyOn(UserSettings.prototype, "getDomain").mockImplementation(() => "https://passbolt.dev");
-      jest.spyOn(GetActiveAccountService, "get").mockImplementation(() => new AccountEntity(defaultAccountDto()));
+      jest
+        .spyOn(GetActiveAccountService, "get")
+        .mockImplementation(() => new AccountEntity(defaultAccountDto({ domain: "https://passbolt.dev" })));
       jest.spyOn(AuthModel.prototype, "logout").mockImplementation(() => {});
       jest.spyOn(browser.tabs, "query").mockImplementation(() => Promise.resolve(tabs));
       jest.spyOn(browser.tabs, "reload");

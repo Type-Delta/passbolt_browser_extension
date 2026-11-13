@@ -38,7 +38,7 @@ class PostLoginService {
     // Start the session check first, so it never depends on the workers' ability to answer.
     await StartLoopAuthSessionCheckService.exec();
     await PostLoginService.sendLoginEventForWorkers();
-    toolbarService.handleUserLoggedIn();
+    await toolbarService.handleUserLoggedIn();
   }
 
   /**

@@ -56,6 +56,13 @@ describe("AuthenticationStatusService::isAuthenticated", () => {
   it("should throw an MfaAuthenticationRequiredError if the user miss the Mfa authentication", async () => {
     expect.assertions(1);
     mockIsAuthenticated(() => mockApiRedirectResponse("/mfa/verify/error.json"));
+    fetch.mockResponseOnce(
+      JSON.stringify({
+        header: { status: "success", code: 200, url: "/mfa/verify/totp.json?api-version=v2" },
+        body: null,
+      }),
+      { status: 200 },
+    );
     const authenticationStatusService = new AuthenticationStatusService(defaultApiClientOptions());
     await expect(authenticationStatusService.isAuthenticated()).rejects.toThrow(MfaAuthenticationRequiredError);
   });

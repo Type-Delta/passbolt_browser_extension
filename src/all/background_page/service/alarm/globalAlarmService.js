@@ -18,6 +18,9 @@ import KeepSessionAliveService from "../session_storage/keepSessionAliveService"
 import PassphraseStorageService from "../session_storage/passphraseStorageService";
 import OfflineSessionExpiryAlarmService from "../auth/offlineSessionExpiryAlarmService";
 
+import SavedAccountsService from "../account/savedAccountsService";
+import AccountContext from "../account/accountContext";
+
 const topLevelAlarmMapping = {
   [StartLoopAuthSessionCheckService.ALARM_NAME]: StartLoopAuthSessionCheckService.handleAuthStatusCheckAlarm,
   [PassphraseStorageService.ALARM_NAME]: PassphraseStorageService.handleFlushEvent,
@@ -34,9 +37,15 @@ const topLevelAlarmMapping = {
  */
 export default class GlobalAlarmService {
   static exec(alarm) {
+    if (alarm.name === "PendingAccountExpiry") {
+      return SavedAccountsService.pending();
+    }
+    if (alarm.name.startsWith(`${PassphraseStorageService.ALARM_NAME}:`)) {
+      return PassphraseStorageService.handleFlushEvent(alarm);
+    }
     const alarmCallback = topLevelAlarmMapping[alarm.name];
     if (alarmCallback) {
-      alarmCallback(alarm);
+      return AccountContext.run(AccountContext.generation, () => alarmCallback(alarm)).catch(() => {});
     }
   }
 }

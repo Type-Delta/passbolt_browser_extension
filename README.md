@@ -121,6 +121,10 @@ grunt build
 ```
 The build can be found under ```dist/chromium-mv3``` or ```dist/chromium-mv2``` or ```dist/firefox```.
 
+## Fork builds and release artifacts
+
+See [docs/fork-build-release.md](docs/fork-build-release.md) for the pinned styleguide tarball contract, fresh-clone bootstrap, local acceptance mode, browser identities, and CI release artifacts. Server frontend image packaging is documented in [deploy/passbolt-frontend/README.md](deploy/passbolt-frontend/README.md).
+
 ## Updating the vendors or the styleguide
 
 You can update the vendors or the styleguide in the ```package.json``` and run the copy task

@@ -1,3 +1,4 @@
+import { mockAuthenticatedApiRequest } from "../../../../../test/mocks/mockApiResponse";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) Passbolt SA (https://www.passbolt.com)
@@ -91,7 +92,9 @@ describe("FindSessionKeysService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/session-keys/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new FindSessionKeysService(apiClientOptions, account);
 
@@ -100,7 +103,7 @@ describe("FindSessionKeysService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/session-keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/session-keys/, () => {
         throw new Error("Service unavailable");
       });
 

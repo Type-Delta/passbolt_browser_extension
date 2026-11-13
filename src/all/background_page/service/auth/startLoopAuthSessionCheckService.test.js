@@ -61,11 +61,11 @@ describe("StartLoopAuthSessionCheckService", () => {
     // Expectation
     expect(spyIsAuthenticated).toHaveBeenCalledTimes(0);
     expect(spyClearAuthSessionCheck).toHaveBeenCalledTimes(0);
-    await jest.advanceTimersByTime(60000);
+    await jest.advanceTimersByTimeAsync(60000);
     expect(spyIsAuthenticated).toHaveBeenCalledTimes(1);
     expect(spyClearAuthSessionCheck).toHaveBeenCalledTimes(0);
 
-    await jest.advanceTimersByTime(60000);
+    await jest.advanceTimersByTimeAsync(60000);
 
     expect(spyIsAuthenticated).toHaveBeenCalledTimes(2);
 
@@ -104,7 +104,7 @@ describe("StartLoopAuthSessionCheckService", () => {
     expect(spyIsAuthenticated).toHaveBeenCalledTimes(0);
     expect(spyClearAuthSessionCheck).toHaveBeenCalledTimes(0);
 
-    await jest.advanceTimersByTime(60000);
+    await jest.advanceTimersByTimeAsync(60000);
     await Promise.resolve();
 
     expect(spyIsAuthenticated).toHaveBeenCalledTimes(1);

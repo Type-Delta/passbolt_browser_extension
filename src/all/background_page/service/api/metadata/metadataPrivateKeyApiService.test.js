@@ -12,7 +12,7 @@
  * @since         5.1.0
  */
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -43,10 +43,14 @@ describe("metadataPrivateKeyApiService", () => {
 
       const encryptedMetadataPrivateKeyDto = defaultMetadataPrivateKeyDto();
 
-      fetch.doMockOnceIf(new RegExp(`/metadata/keys/private/${encryptedMetadataPrivateKeyDto.id}`), async (req) => {
-        expect(req.method).toEqual("PUT");
-        return mockApiResponse(encryptedMetadataPrivateKeyDto);
-      });
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/metadata/keys/private/${encryptedMetadataPrivateKeyDto.id}`),
+        async (req) => {
+          expect(req.method).toEqual("PUT");
+          return mockApiResponse(encryptedMetadataPrivateKeyDto);
+        },
+      );
 
       const entity = new MetadataPrivateKeyEntity(encryptedMetadataPrivateKeyDto);
       const service = new MetadataPrivateKeyApiService(apiClientOptions);
@@ -81,7 +85,7 @@ describe("metadataPrivateKeyApiService", () => {
 
       const shareMetadataPrivateKeysDtos = shareMetadataPrivateKeysWithEncryptedKeyDtos();
 
-      fetch.doMockOnceIf(new RegExp(`/metadata/keys/private`), async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp(`/metadata/keys/private`), async (req) => {
         expect(req.method).toEqual("POST");
         return mockApiResponse(shareMetadataPrivateKeysDtos);
       });

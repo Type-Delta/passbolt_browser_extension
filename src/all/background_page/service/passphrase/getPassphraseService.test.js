@@ -62,6 +62,7 @@ describe("GetPassphraseService", () => {
     worker.port._port = {
       onDisconnect: {
         addListener: (callback) => worker.port.addRequestListener("disconnect", callback),
+        removeListener: () => {},
       },
       sender: { tab: tab },
     };

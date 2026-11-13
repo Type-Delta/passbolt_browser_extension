@@ -37,6 +37,7 @@ class WorkerEntity extends Entity {
       type: "object",
       required: ["id", "tabId", "name", "status"],
       properties: {
+        account_id: { type: "string", nullable: true },
         id: {
           type: "string",
           format: "uuid",

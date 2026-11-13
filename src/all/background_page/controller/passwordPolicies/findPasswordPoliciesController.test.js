@@ -19,7 +19,7 @@ import PasswordPoliciesEntity from "../../model/entity/passwordPolicies/password
 import FindPasswordPoliciesController from "./findPasswordPoliciesController";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
 import { defaultPasswordPolicies } from "../../model/entity/passwordPolicies/passwordPoliciesEntity.test.data";
-import { mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
 
 describe("FindPasswordPoliciesController::exec", () => {
   let account, apiClientOptions;
@@ -40,7 +40,9 @@ describe("FindPasswordPoliciesController::exec", () => {
       default_generator: "passphrase",
     });
 
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(expectedPasswordPolicies));
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+      mockApiResponse(expectedPasswordPolicies),
+    );
 
     const controller = new FindPasswordPoliciesController(null, null, account, apiClientOptions);
     const spyOnFind = jest.spyOn(controller.passwordPoliciesModel, "find");
@@ -62,8 +64,8 @@ describe("FindPasswordPoliciesController::exec", () => {
     const throwErrorCallback = () => {
       throw new Error("Something went wrong!");
     };
-    fetch.doMockOnceIf(/password-policies\/settings\.json/, throwErrorCallback);
-    fetch.doMockOnceIf(/password-generator\/settings\.json/, throwErrorCallback);
+    mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, throwErrorCallback);
+    mockAuthenticatedApiRequest(apiClientOptions, /password-generator\/settings\.json/, throwErrorCallback);
 
     const controller = new FindPasswordPoliciesController(null, null, account, apiClientOptions);
     const resultingPasswordPolicies = await controller.exec();

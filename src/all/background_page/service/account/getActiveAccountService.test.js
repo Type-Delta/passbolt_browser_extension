@@ -32,7 +32,7 @@ describe("GetActiveAccountService", () => {
     expect(GetLegacyAccountService.get).toHaveBeenCalledTimes(1);
   });
 
-  it("GetActiveAccountService:get should call GetLegacyAccountService each time", async () => {
+  it("GetActiveAccountService:get migrates the legacy account once then reads the saved selection", async () => {
     expect.assertions(3);
     // spy function
     jest.spyOn(UserModel.prototype, "findOne").mockImplementation(() => ({ role: { name: "admin" } }));
@@ -42,7 +42,7 @@ describe("GetActiveAccountService", () => {
     const account2 = await getActiveAccountService.get({ role: true });
     const account3 = await getActiveAccountService.get();
     // expectations
-    expect(GetLegacyAccountService.get).toHaveBeenCalledTimes(3);
+    expect(GetLegacyAccountService.get).toHaveBeenCalledTimes(1);
     expect(account).toStrictEqual(account2);
     expect(account3.roleName).toBeNull();
   });

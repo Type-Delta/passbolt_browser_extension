@@ -117,6 +117,7 @@ const buildCommonConfigs = () => [
       'recover': resolveSrc('./src/all/contentScripts/js/app/Recover.js'),
       'login': resolveSrc('./src/all/contentScripts/js/app/Login.js'),
       'account-recovery': resolveSrc('./src/all/contentScripts/js/app/AccountRecovery.js'),
+      'account-onboarding': resolveSrc('./src/all/contentScripts/js/app/AccountOnboarding.js'),
     },
     chunkLoadingGlobal: 'contentScriptChunkLoadingGlobal',
     outputPath: './build/all/contentScripts/js/dist',

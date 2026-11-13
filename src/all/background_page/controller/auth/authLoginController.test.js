@@ -31,8 +31,20 @@ import PassphraseStorageService from "../../service/session_storage/passphraseSt
 import AccountTemporarySessionStorageService from "../../service/sessionStorage/accountTemporarySessionStorageService";
 import KeepSessionAliveService from "../../service/session_storage/keepSessionAliveService";
 
+import { assertAuthenticatedAccount } from "../../service/account/accountApiGuard";
+import AuthLogoutService from "passbolt-styleguide/src/shared/services/api/auth/AuthLogoutService";
+import AuthVerifyServerChallengeService from "../../service/auth/authVerifyServerChallengeService";
+
+jest.mock("../../service/account/accountApiGuard", () => ({ assertAuthenticatedAccount: jest.fn() }));
+
 beforeEach(async () => {
   enableFetchMocks();
+  assertAuthenticatedAccount
+    .mockReset()
+    .mockResolvedValue({})
+    .mockRejectedValueOnce(new Error("No matching authenticated cookie"));
+  jest.spyOn(AuthLogoutService.prototype, "logout").mockResolvedValue();
+  jest.spyOn(AuthVerifyServerChallengeService.prototype, "verifyAndValidateServerChallenge").mockResolvedValue();
   jest.clearAllMocks();
   await MockExtension.withConfiguredAccount();
   jest
@@ -81,7 +93,11 @@ describe("AuthLoginController", () => {
 
         jest
           .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-          .mockImplementationOnce(jest.fn());
+          .mockResolvedValueOnce({
+            id: account.userId,
+            username: account.username,
+            gpgkey: { fingerprint: account.userKeyFingerprint },
+          });
         jest.spyOn(PassphraseStorageService, "set").mockImplementation(async () => {});
         jest.spyOn(PostLoginService, "exec").mockImplementation(async () => {});
         jest.spyOn(browser.tabs, "update");
@@ -138,9 +154,11 @@ describe("AuthLoginController", () => {
 
       const account = new AccountEntity(defaultAccountDto());
       const controller = new AuthLoginController(null, null, defaultApiClientOptions(), account);
-      jest
-        .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-        .mockImplementationOnce(jest.fn());
+      jest.spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge").mockResolvedValueOnce({
+        id: account.userId,
+        username: account.username,
+        gpgkey: { fingerprint: account.userKeyFingerprint },
+      });
 
       await controller.exec(passphrase, true);
       expect(GenerateSsoKitService.generate).not.toHaveBeenCalled();
@@ -155,9 +173,11 @@ describe("AuthLoginController", () => {
 
       const account = new AccountEntity(defaultAccountDto());
       const controller = new AuthLoginController(null, null, defaultApiClientOptions(), account);
-      jest
-        .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-        .mockImplementationOnce(jest.fn());
+      jest.spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge").mockResolvedValueOnce({
+        id: account.userId,
+        username: account.username,
+        gpgkey: { fingerprint: account.userKeyFingerprint },
+      });
 
       await controller.exec(passphrase, true);
       expect(GenerateSsoKitService.generate).not.toHaveBeenCalled();
@@ -173,9 +193,11 @@ describe("AuthLoginController", () => {
 
       const account = new AccountEntity(defaultAccountDto());
       const controller = new AuthLoginController(null, null, defaultApiClientOptions(), account);
-      jest
-        .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-        .mockImplementationOnce(jest.fn());
+      jest.spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge").mockResolvedValueOnce({
+        id: account.userId,
+        username: account.username,
+        gpgkey: { fingerprint: account.userKeyFingerprint },
+      });
 
       await controller.exec(passphrase, true);
       expect(GenerateSsoKitService.generate).toHaveBeenCalledTimes(1);
@@ -190,9 +212,11 @@ describe("AuthLoginController", () => {
 
       const account = new AccountEntity(defaultAccountDto());
       const controller = new AuthLoginController(null, null, defaultApiClientOptions(), account);
-      jest
-        .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-        .mockImplementationOnce(jest.fn());
+      jest.spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge").mockResolvedValueOnce({
+        id: account.userId,
+        username: account.username,
+        gpgkey: { fingerprint: account.userKeyFingerprint },
+      });
 
       await controller.exec(passphrase, true);
       expect(SsoDataStorage.flush).toHaveBeenCalledTimes(1);
@@ -205,9 +229,11 @@ describe("AuthLoginController", () => {
 
       const account = new AccountEntity(defaultAccountDto());
       const controller = new AuthLoginController(null, null, defaultApiClientOptions(), account);
-      jest
-        .spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge")
-        .mockImplementationOnce(jest.fn());
+      jest.spyOn(controller.authVerifyLoginChallengeService, "verifyAndValidateLoginChallenge").mockResolvedValueOnce({
+        id: account.userId,
+        username: account.username,
+        gpgkey: { fingerprint: account.userKeyFingerprint },
+      });
 
       await controller.exec(passphrase, true);
       expect(SsoDataStorage.flush).toHaveBeenCalledTimes(1);

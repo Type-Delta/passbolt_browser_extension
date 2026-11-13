@@ -1,3 +1,5 @@
+import SavedAccountsService from "../../service/account/savedAccountsService";
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) Passbolt SA (https://www.passbolt.com)
@@ -45,6 +47,15 @@ export default class OpenTrustedDomainTabController {
    * @returns {Promise<void>}
    */
   async exec() {
+    const pending = await SavedAccountsService.pending();
+    if (pending?.saved) {
+      const account = await SavedAccountRegistry.active();
+      if (SavedAccountRegistry.account(pending.account).id === account.id) {
+        const result = SavedAccountsService.pendingResult(account, pending);
+        await SavedAccountsService.navigate(result, pending.tab_id === null ? {} : { tab: { id: pending.tab_id } });
+        return;
+      }
+    }
     await this.openTrustedDomainTabService.openTab();
   }
 }

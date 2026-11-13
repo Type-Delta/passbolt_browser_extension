@@ -183,11 +183,12 @@ describe("PopupHandlerService", () => {
       }));
 
       const service = new PopupHandlerService();
-      service.getSsoTokenFromThirdParty(thirdPartyUrl);
+      const request = service.getSsoTokenFromThirdParty(thirdPartyUrl).catch((error) => error);
 
       await runPendingPromises();
 
-      service.closeHandler();
+      await service.closeHandler();
+      await request;
 
       expect(browser.tabs.onUpdated.removeListener).toHaveBeenCalledWith(expect.any(Function));
       expect(browser.tabs.onRemoved.removeListener).toHaveBeenCalledWith(expect.any(Function));

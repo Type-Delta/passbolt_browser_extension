@@ -1,3 +1,5 @@
+import SavedAccountsService from "../../service/account/savedAccountsService";
+import MfaAuthenticationRequiredError from "../../error/mfaAuthenticationRequiredError";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) 2022 Passbolt SA (https://www.passbolt.com)
@@ -23,6 +25,10 @@ import AuthVerifyLoginChallengeService from "../../service/auth/authVerifyLoginC
 import KeepSessionAliveService from "../../service/session_storage/keepSessionAliveService";
 import GetOrFindActiveSessionService from "../../service/activeSession/getOrFindActiveSessionService";
 import ActiveSessionLocalStorage from "../../service/local_storage/activeSessionLocalStorage";
+
+import { assertAuthenticatedAccount } from "../../service/account/accountApiGuard";
+import AuthLogoutService from "passbolt-styleguide/src/shared/services/api/auth/AuthLogoutService";
+import AuthVerifyServerChallengeService from "../../service/auth/authVerifyServerChallengeService";
 
 class AuthLoginController {
   /**
@@ -99,27 +105,62 @@ class AuthLoginController {
     }
 
     try {
-      await this.authVerifyLoginChallengeService.verifyAndValidateLoginChallenge(
-        this.account.userKeyFingerprint,
-        this.account.userPrivateArmoredKey,
-        passphrase,
-      );
+      // A cookie may have been replaced by another identity since this login UI opened.
+      let authenticated = false;
+      try {
+        await assertAuthenticatedAccount(this.apiClientOptions, this.account);
+        authenticated = true;
+      } catch {
+        await new AuthLogoutService(this.apiClientOptions).logout();
+        await new AuthVerifyServerChallengeService(this.apiClientOptions).verifyAndValidateServerChallenge(
+          this.account.userKeyFingerprint,
+          this.account.serverPublicArmoredKey,
+        );
+      }
+      if (!authenticated) {
+        const primaryUser = await this.authVerifyLoginChallengeService.verifyAndValidateLoginChallenge(
+          this.account.userKeyFingerprint,
+          this.account.userPrivateArmoredKey,
+          passphrase,
+        );
+        SavedAccountsService.assertIdentity(primaryUser, this.account.username, this.account.userKeyFingerprint);
+        if (primaryUser.id !== this.account.userId) {
+          throw new Error("The server returned another authenticated identity.");
+        }
+      }
       /*
        * Post login operations
        * MFA may not be complete yet, so no need to preload things here
        */
       if (rememberMe) {
-        await Promise.all([PassphraseStorageService.set(passphrase, -1), KeepSessionAliveService.start()]);
+        await PassphraseStorageService.set(passphrase, -1);
       } else {
         await PassphraseStorageService.set(passphrase, 60);
       }
 
-      await PostLoginService.exec(this.account, this.apiClientOptions);
       await this.registerRememberMeOption(rememberMe);
+      await KeepSessionAliveService.stop();
+      try {
+        await assertAuthenticatedAccount(this.apiClientOptions, this.account, { checkMfa: true });
+      } catch (error) {
+        if (!(error instanceof MfaAuthenticationRequiredError)) {
+          throw error;
+        }
+        // Primary proof is complete. Existing status and trusted-tab RPCs own native factor handoff.
+        await SavedAccountsService.savePending(this.account, passphrase, true);
+        if (shouldRefreshCurrentTab) {
+          const pending = await SavedAccountsService.pending();
+          await SavedAccountsService.navigate(SavedAccountsService.pendingResult(this.account, pending), this.worker);
+        }
+        return;
+      }
+      await PostLoginService.exec(this.account, this.apiClientOptions);
+      await KeepSessionAliveService.resume(this.account.id);
     } catch (error) {
       if (!(error instanceof UserAlreadyLoggedInError)) {
         throw error;
       }
+      await assertAuthenticatedAccount(this.apiClientOptions, this.account);
     }
 
     if (shouldRefreshCurrentTab) {

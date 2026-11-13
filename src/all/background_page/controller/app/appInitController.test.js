@@ -1,3 +1,5 @@
+import GetActiveAccountService from "../../service/account/getActiveAccountService";
+import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
 /**
  * Passbolt ~ Open source password manager for teams
  * Copyright (c) 2022 Passbolt SA (https://www.passbolt.com)
@@ -19,7 +21,7 @@ import SsoKitTemporaryStorageService from "../../service/session_storage/ssoKitT
 import SsoDataStorage from "../../service/indexedDB_storage/ssoDataStorage";
 import { v4 as uuid } from "uuid";
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../test/mocks/mockApiResponse";
 import { generateSsoKitServerData } from "../../model/entity/sso/ssoKitServerPart.test.data";
 import SsoKitClientPartEntity from "../../model/entity/sso/ssoKitClientPartEntity";
 import { clientSsoKit } from "../../model/entity/sso/ssoKitClientPart.test.data";
@@ -81,7 +83,8 @@ describe("AppInitController", () => {
       jest.spyOn(SsoKitTemporaryStorageService, "getAndFlush").mockImplementation(async () => storedServerSsoKit);
 
       jest.spyOn(browser.cookies, "get").mockImplementationOnce(() => ({ value: "csrf-token" }));
-      fetch.doMockOnceIf(new RegExp("/sso/keys.json"), async (req) => {
+      const apiClientOptions = BuildApiClientOptionsService.buildFromAccount(await GetActiveAccountService.get());
+      mockAuthenticatedApiRequest(apiClientOptions, new RegExp("/sso/keys.json"), async (req) => {
         const body = JSON.parse(await req.text());
         expect(body).toStrictEqual(storedServerSsoKit);
         return mockApiResponse(ssoKitServerResponse);

@@ -21,7 +21,11 @@ import {
   defaultUserPassphrasePoliciesEntityDto,
   userPassphrasePoliciesEntityDtoFromApi,
 } from "passbolt-styleguide/src/shared/models/userPassphrasePolicies/UserPassphrasePoliciesDto.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import SaveUserPassphrasePoliciesController from "./saveUserPassphrasePoliciesController";
@@ -47,7 +51,7 @@ describe("SaveUserPassphrasePoliciesController", () => {
     const expectedDto = userPassphrasePoliciesEntityDtoFromApi(dtoToSave);
     const expectedEntity = new UserPassphrasePoliciesEntity(expectedDto);
 
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, async (request) => {
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, async (request) => {
       const body = JSON.parse(await request.text());
       expect(body).toStrictEqual(dtoToSave);
       return mockApiResponse(expectedDto);
@@ -61,7 +65,7 @@ describe("SaveUserPassphrasePoliciesController", () => {
   it("Should throw an exception if something wrong happens on the API", async () => {
     expect.assertions(1);
 
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () =>
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () =>
       mockApiResponseError(500, "Something went wrong"),
     );
 
@@ -72,7 +76,7 @@ describe("SaveUserPassphrasePoliciesController", () => {
 
   it("Should return the default value if something goes when requesting the API", async () => {
     expect.assertions(1);
-    fetch.doMockOnceIf(/user-passphrase-policies\/settings\.json/, () => {
+    mockAuthenticatedApiRequest(apiClientOptions, /user-passphrase-policies\/settings\.json/, () => {
       throw new Error("Something went wrong");
     });
 

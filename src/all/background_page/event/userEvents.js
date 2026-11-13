@@ -52,7 +52,7 @@ const listen = function (worker, apiClientOptions, account) {
    */
   worker.port.on("passbolt.users.get-by-ids", async (requestId, userIds) => {
     const controller = new GetOrFindUsersController(worker, requestId, apiClientOptions, account);
-    controller._exec(userIds);
+    await controller._exec(userIds);
   });
 
   /*

@@ -18,8 +18,9 @@ import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/Pass
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import SetupService from "./setupService";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
-import AccountEntity from "../../../model/entity/account/accountEntity";
-import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
+import AccountSetupEntity from "../../../model/entity/account/accountSetupEntity";
+import AccountRecoverEntity from "../../../model/entity/account/accountRecoverEntity";
+import { startAccountRecoverDto } from "../../../model/entity/account/accountRecoverEntity.test.data";
 import { initialAccountAccountRecoveryDto } from "../../../model/entity/account/accountAccountRecoveryEntity.test.data";
 import { startAccountSetupDto } from "../../../model/entity/account/accountSetupEntity.test.data";
 
@@ -29,7 +30,7 @@ describe("SetupService", () => {
   beforeEach(() => {
     enableFetchMocks();
     fetch.resetMocks();
-    const account = new AccountEntity(defaultAccountDto());
+    const account = new AccountSetupEntity(startAccountSetupDto());
     apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
     service = new SetupService(apiClientOptions);
 
@@ -87,6 +88,9 @@ describe("SetupService", () => {
 
   describe("::completeRecover", () => {
     beforeEach(() => {
+      const account = new AccountRecoverEntity(startAccountRecoverDto());
+      apiClientOptions = BuildApiClientOptionsService.buildFromAccount(account);
+      service = new SetupService(apiClientOptions);
       accountRecoveryDto = initialAccountAccountRecoveryDto();
     });
 

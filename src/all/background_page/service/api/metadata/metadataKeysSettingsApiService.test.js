@@ -13,7 +13,7 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../../account/buildApiClientOptionsService";
@@ -36,7 +36,9 @@ describe("MetadataKeysSettingsApiService", () => {
   describe("::findSettings", () => {
     it("retrieves the settings from API", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys\/settings/, () => mockApiResponse(defaultMetadataKeysSettingsDto()));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys\/settings/, () =>
+        mockApiResponse(defaultMetadataKeysSettingsDto()),
+      );
 
       const service = new MetadataKeysSettingsApiService(apiClientOptions);
       const resultDto = await service.findSettings();
@@ -47,7 +49,9 @@ describe("MetadataKeysSettingsApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys\/settings/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys\/settings/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new MetadataKeysSettingsApiService(apiClientOptions);
 
@@ -56,7 +60,7 @@ describe("MetadataKeysSettingsApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys\/settings/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys\/settings/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -72,7 +76,7 @@ describe("MetadataKeysSettingsApiService", () => {
 
       const settingsDto = defaultMetadataKeysSettingsDto();
       const settings = new MetadataKeysSettingsEntity(settingsDto);
-      fetch.doMockOnceIf(/metadata\/keys\/settings/, async (req) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys\/settings/, async (req) => {
         expect(req.method).toEqual("POST");
         const reqPayload = await req.json();
         return mockApiResponse(defaultMetadataKeysSettingsDto(reqPayload));

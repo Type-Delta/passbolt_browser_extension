@@ -74,7 +74,7 @@ class AuthLoginService extends AbstractService {
     const url = this.apiClient.buildUrl(this.apiClient.baseUrl.toString());
     // Send request token to the server
     const response = await this.apiClient.sendRequest("POST", url, body, fetchOptions);
-    await this.apiClient.parseResponseJson(response);
+    this.authenticatedUser = (await this.apiClient.parseResponseJson(response)).body;
     return response;
   }
 }

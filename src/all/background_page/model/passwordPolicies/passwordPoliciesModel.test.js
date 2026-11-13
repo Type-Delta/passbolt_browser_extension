@@ -13,7 +13,11 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import { defaultAccountDto } from "../entity/account/accountEntity.test.data";
 import AccountEntity from "../entity/account/accountEntity";
 import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
@@ -76,7 +80,9 @@ describe("PasswordPoliciesModel", () => {
         default_generator: "passphrase",
       });
 
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(expectedPasswordPolicies));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+        mockApiResponse(expectedPasswordPolicies),
+      );
 
       const model = new PasswordPoliciesModel(account, apiClientOptions);
       const storage = model.passwordPoliciesLocalStorage;
@@ -101,7 +107,9 @@ describe("PasswordPoliciesModel", () => {
         default_generator: "passphrase",
       });
 
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, () => mockApiResponse(expectedPasswordPolicies));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
+        mockApiResponse(expectedPasswordPolicies),
+      );
 
       const model = new PasswordPoliciesModel(account, apiClientOptions);
       const storage = model.passwordPoliciesLocalStorage;
@@ -136,10 +144,12 @@ describe("PasswordPoliciesModel", () => {
       };
       const expectedPasswordPolicies = defaultPasswordPolicies(oldFormatDto);
 
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, () =>
         mockApiResponseError(404, "Endpoint is not existing"),
       );
-      fetch.doMockOnceIf(/password-generator\/settings\.json/, () => mockApiResponse(oldFormatDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-generator\/settings\.json/, () =>
+        mockApiResponse(oldFormatDto),
+      );
 
       const model = new PasswordPoliciesModel(account, apiClientOptions);
       const storage = model.passwordPoliciesLocalStorage;
@@ -163,8 +173,8 @@ describe("PasswordPoliciesModel", () => {
       const serverErrorCallback = () => {
         throw new Error("something went wrong");
       };
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, serverErrorCallback);
-      fetch.doMockOnceIf(/password-generator\/settings\.json/, serverErrorCallback);
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, serverErrorCallback);
+      mockAuthenticatedApiRequest(apiClientOptions, /password-generator\/settings\.json/, serverErrorCallback);
 
       const model = new PasswordPoliciesModel(account, apiClientOptions);
       const storage = model.passwordPoliciesLocalStorage;
@@ -191,7 +201,7 @@ describe("PasswordPoliciesModel", () => {
         default_generator: "passphrase",
       });
 
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, async (request) => {
         const body = JSON.parse(await request.text());
         expect(body).toStrictEqual(expectedPasswordPolicies);
         return mockApiResponse(expectedPasswordPolicies);
@@ -217,7 +227,7 @@ describe("PasswordPoliciesModel", () => {
         default_generator: "passphrase",
       });
 
-      fetch.doMockOnceIf(/password-policies\/settings\.json/, async () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-policies\/settings\.json/, async () => {
         throw new Error("something went wrong!");
       });
 

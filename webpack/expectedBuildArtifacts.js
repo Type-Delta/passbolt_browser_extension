@@ -23,6 +23,7 @@
 const COMMON_EXPECTED_FILES = [
   "manifest.json",
   "contentScripts/js/dist/app.js",
+  "contentScripts/js/dist/account-onboarding.js",
   "contentScripts/js/dist/browser-integration/browser-integration.js",
   "contentScripts/js/dist/browser-integration/vendors.js",
   "contentScripts/js/dist/public-website-sign-in/public-website-sign-in.js",

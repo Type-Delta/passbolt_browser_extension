@@ -1,3 +1,4 @@
+import AccountContext from "../account/accountContext";
 /**
  * Passphrase controller.
  *
@@ -77,7 +78,10 @@ export default class GetPassphraseService {
    * @returns {Promise<string>}
    */
   async requestPassphraseFromQuickAccess() {
+    const generation = AccountContext.generation;
+    AccountContext.assert(generation);
     const storedPassphrase = await PassphraseStorageService.get();
+    AccountContext.assert(generation);
     if (storedPassphrase) {
       return storedPassphrase;
     }
@@ -92,15 +96,21 @@ export default class GetPassphraseService {
     if (QuickAccessService.isAttachedModeAvailable()) {
       // Open attached popup — returns the workerId used as the port name
       const workerId = await QuickAccessService.open(queryParameters);
-      quickAccessResponse = await this.listenToAttachedQuickaccessPassphraseRequestResponse(requestId, workerId);
+      quickAccessResponse = await this.listenToAttachedQuickaccessPassphraseRequestResponse(
+        requestId,
+        workerId,
+        generation,
+      );
     } else {
       const quickAccessWindow = await QuickAccessService.openInDetachedMode(queryParameters);
       quickAccessResponse = await this.listenToDetachedQuickaccessPassphraseRequestResponse(
         requestId,
         quickAccessWindow,
+        generation,
       );
     }
 
+    AccountContext.assert(generation);
     const { passphrase, rememberMe } = quickAccessResponse;
     await this.validatePassphrase(passphrase);
     await this.rememberPassphrase(passphrase, rememberMe);
@@ -114,12 +124,18 @@ export default class GetPassphraseService {
    * @param {window.Window} quickAccessWindow The window the quick access runs on.
    * @returns {Promise<{passphrase: string, rememberMe: string}>}
    */
-  async listenToDetachedQuickaccessPassphraseRequestResponse(requestId, quickAccessWindow) {
+  async listenToDetachedQuickaccessPassphraseRequestResponse(
+    requestId,
+    quickAccessWindow,
+    generation = AccountContext.generation,
+  ) {
+    AccountContext.assert(generation);
     const tabId = quickAccessWindow?.tabs?.[0]?.id;
     await WorkerService.waitExists("QuickAccess", tabId);
+    AccountContext.assert(generation);
     const quickAccessWorker = await WorkerService.get("QuickAccess", tabId);
-
-    return this.listenForPassphraseInQuickaccess(quickAccessWorker.port, requestId);
+    AccountContext.assert(generation);
+    return this.listenForPassphraseInQuickaccess(quickAccessWorker.port, requestId, generation);
   }
 
   /**
@@ -129,9 +145,15 @@ export default class GetPassphraseService {
    * @param {string} workerId The worker id used as the port identifier
    * @returns {Promise<{passphrase: string, rememberMe: string}>}
    */
-  async listenToAttachedQuickaccessPassphraseRequestResponse(requestId, workerId) {
-    const port = await this.waitForPort(workerId);
-    return await this.listenForPassphraseInQuickaccess(port, requestId);
+  async listenToAttachedQuickaccessPassphraseRequestResponse(
+    requestId,
+    workerId,
+    generation = AccountContext.generation,
+  ) {
+    AccountContext.assert(generation);
+    const port = await this.waitForPort(workerId, 5000, generation);
+    AccountContext.assert(generation);
+    return await this.listenForPassphraseInQuickaccess(port, requestId, generation);
   }
 
   /**
@@ -140,26 +162,37 @@ export default class GetPassphraseService {
    * @param {string} requestId
    * @returns {Promise<string>}
    */
-  async listenForPassphraseInQuickaccess(port, requestId) {
-    let isResolved = false;
+  async listenForPassphraseInQuickaccess(port, requestId, generation = AccountContext.generation) {
+    AccountContext.assert(generation);
     return new Promise((resolve, reject) => {
-      // When the passphrase is entered and valid, the quickaccess responds on the port with the requestId.
-      port.on(requestId, (status, requestResult) => {
-        isResolved = true;
-        if (status === "SUCCESS") {
-          resolve(requestResult);
-        } else {
-          reject(requestResult);
+      let settled = false;
+      const settle = (error, result) => {
+        if (settled) {
+          return;
         }
-      });
-      // If the user closes the popup before entering their passphrase, the operation is aborted.
-      port._port.onDisconnect.addListener(() => {
-        if (!isResolved) {
-          isResolved = true;
-          const error = new UserAbortsOperationError("The dialog has been closed.");
+        settled = true;
+        port.removeListener(requestId, response);
+        port._port.onDisconnect.removeListener(disconnect);
+        AccountContext.interactiveRequests.delete(cancel);
+        if (error) {
           reject(error);
+        } else {
+          resolve(result);
         }
-      });
+      };
+      const response = (status, result) => {
+        try {
+          AccountContext.assert(generation);
+          settle(status === "SUCCESS" ? null : result, result);
+        } catch (error) {
+          settle(error);
+        }
+      };
+      const disconnect = () => settle(new UserAbortsOperationError("The dialog has been closed."));
+      const cancel = () => settle(new Error("The account request was canceled. Reopen the vault."));
+      port.on(requestId, response);
+      port._port.onDisconnect.addListener(disconnect);
+      AccountContext.interactiveRequests.add(cancel);
     });
   }
 
@@ -169,9 +202,10 @@ export default class GetPassphraseService {
    * @param {number} timeout The maximum time to wait in milliseconds
    * @returns {Promise<Port>}
    */
-  async waitForPort(portId, timeout = 5000) {
+  async waitForPort(portId, timeout = 5000, generation = AccountContext.generation) {
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
+      AccountContext.assert(generation);
       if (PortManager.isPortExist(portId)) {
         return PortManager.getPortById(portId);
       }

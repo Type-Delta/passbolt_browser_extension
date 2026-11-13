@@ -13,7 +13,10 @@
  */
 import storage from "../../sdk/storage";
 import { Config } from "../../model/config";
-import GetLegacyAccountService from "./getLegacyAccountService";
+import SavedAccountRegistry from "./savedAccountRegistry";
+
+import AccountModel from "../../model/account/accountModel";
+import Keyring from "../../model/keyring";
 
 const ACTIVE_ACCOUNT_KEY = "active-account";
 
@@ -32,7 +35,17 @@ class GetActiveAccountService {
         // Initialization of the config to get the user information
         Config.init();
       }
-      return GetLegacyAccountService.get();
+      const account = await SavedAccountRegistry.active();
+      // Recover an interrupted projection on worker restart before any legacy consumer can use it.
+      const key = new Keyring().findPrivate();
+      if (
+        Config.read("user.id") !== account.userId ||
+        Config.read("user.settings.trustedDomain") !== account.domain ||
+        key?.fingerprint?.toUpperCase() !== account.userKeyFingerprint?.toUpperCase()
+      ) {
+        await new AccountModel().activate(account);
+      }
+      return account;
     });
   }
 }

@@ -13,7 +13,11 @@
  */
 
 import { enableFetchMocks } from "jest-fetch-mock";
-import { mockApiResponse, mockApiResponseError } from "../../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../../test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import AccountEntity from "../../../model/entity/account/accountEntity";
@@ -39,7 +43,7 @@ describe("Permission service", () => {
       const resourceId = uuidv4();
       const expectedDto = [ownerPermissionDto()];
 
-      fetch.doMockOnceIf(/permissions\/resource/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /permissions\/resource/, async (request) => {
         const url = new URL(request.url);
         expect(url.searchParams.get("contain[user.profile]")).toStrictEqual("1");
         expect(url.searchParams.get("contain[user]")).toStrictEqual("1");
@@ -69,7 +73,9 @@ describe("Permission service", () => {
     it("Should throw an error if an error happens on the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/permissions\/resource/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /permissions\/resource/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new PermissionService(apiClientOptions);
       try {
@@ -82,7 +88,7 @@ describe("Permission service", () => {
     it("Should throw an error if an error happens when requesting the API", async () => {
       expect.assertions(1);
 
-      fetch.doMockOnceIf(/permissions\/resource/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /permissions\/resource/, () => {
         throw new Error("Something wrong happened");
       });
 

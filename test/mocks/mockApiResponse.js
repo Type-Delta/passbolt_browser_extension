@@ -59,3 +59,23 @@ exports.mockApiResponseError = (status, errorMessage, body = {}) => Promise.reso
     body: body
   })
 });
+
+/**
+ * Queue the account identity check and its protected API request.
+ * @param {Object} apiClientOptions The options bound to the authenticated account.
+ * @param {string|RegExp|Function} urlOrPredicate The protected endpoint matcher.
+ * @param {string|Function} bodyOrFunction The endpoint response or callback.
+ * @param {Object} init The endpoint response options.
+ * @returns {*} The queued fetch mock.
+ */
+exports.mockAuthenticatedApiRequest = (apiClientOptions, urlOrPredicate, bodyOrFunction, init) => {
+  const account = apiClientOptions.accountContext.account;
+  fetch.doMockOnceIf(/\/users\/me\.json(?:\?|$)/, () =>
+    exports.mockApiResponse({
+      id: account.userId,
+      username: account.username,
+      gpgkey: { fingerprint: account.userKeyFingerprint },
+    }),
+  );
+  return fetch.doMockOnceIf(urlOrPredicate, bodyOrFunction, init);
+};

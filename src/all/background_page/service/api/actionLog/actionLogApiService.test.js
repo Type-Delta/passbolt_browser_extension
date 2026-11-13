@@ -14,7 +14,7 @@
 
 import { enableFetchMocks } from "jest-fetch-mock";
 import { v4 as uuidv4 } from "uuid";
-import { mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
+import { mockAuthenticatedApiRequest, mockApiResponse } from "../../../../../../test/mocks/mockApiResponse";
 import ActionLogApiService from "./actionLogApiService";
 import AccountEntity from "../../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../../model/entity/account/accountEntity.test.data";
@@ -35,7 +35,7 @@ describe("ActionLogService", () => {
       expect.assertions(2);
 
       const apiResponse = [defaultActionLogsCollection];
-      fetch.doMockOnceIf(/actionlog\/resource/, () => mockApiResponse(apiResponse));
+      mockAuthenticatedApiRequest(apiClientOptions, /actionlog\/resource/, () => mockApiResponse(apiResponse));
 
       const service = new ActionLogApiService(apiClientOptions, account);
       const result = await service.findAllFor("Resource", uuidv4(), 1, 5);

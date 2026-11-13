@@ -16,7 +16,11 @@ import { enableFetchMocks } from "jest-fetch-mock";
 import AccountEntity from "../entity/account/accountEntity";
 import BuildApiClientOptionsService from "../../service/account/buildApiClientOptionsService";
 import { defaultAccountDto } from "../entity/account/accountEntity.test.data";
-import { mockApiResponse, mockApiResponseError } from "../../../../../test/mocks/mockApiResponse";
+import {
+  mockAuthenticatedApiRequest,
+  mockApiResponse,
+  mockApiResponseError,
+} from "../../../../../test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
 import PasswordPoliciesEntity from "../entity/passwordPolicies/passwordPoliciesEntity";
@@ -66,7 +70,9 @@ describe("PasswordExpiry model", () => {
       expect.assertions(1);
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpirySettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const result = await model.getOrFindOrDefault();
 
@@ -76,7 +82,7 @@ describe("PasswordExpiry model", () => {
     it("should return a default entity if the API returns an HTTP error", async () => {
       expect.assertions(1);
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
         mockApiResponseError(404, "Endpoint is not existing"),
       );
 
@@ -88,7 +94,7 @@ describe("PasswordExpiry model", () => {
     it("should return a default entity if something goes wrong on the API", async () => {
       expect.assertions(1);
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 
@@ -112,7 +118,7 @@ describe("PasswordExpiry model", () => {
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi(baseData);
       const expectedEntity = new PasswordExpirySettingsEntity(expectedDto);
 
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, async (request) => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, async (request) => {
         const body = JSON.parse(await request.text());
         expect(body).toStrictEqual(dtoToSave);
         return mockApiResponse(expectedDto);
@@ -133,7 +139,7 @@ describe("PasswordExpiry model", () => {
 
     it("should throw an Error if something goes wrong on the API", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
         mockApiResponseError(500, "Endpoint is not existing"),
       );
 
@@ -147,7 +153,7 @@ describe("PasswordExpiry model", () => {
 
     it("should throw an Error if the API returns an HTTP error", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 
@@ -163,7 +169,11 @@ describe("PasswordExpiry model", () => {
   describe("::delete", () => {
     it("should delete the entity from the API given an ID", async () => {
       const passwordExpiryId = uuid();
-      fetch.doMockOnceIf(new RegExp(`/password-expiry/settings/${passwordExpiryId}\\.json`), () => mockApiResponse({}));
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/password-expiry/settings/${passwordExpiryId}\\.json`),
+        () => mockApiResponse({}),
+      );
 
       await expect(model.delete(passwordExpiryId)).resolves.not.toThrow();
     });
@@ -178,7 +188,8 @@ describe("PasswordExpiry model", () => {
     it("should throw an Error if something goes wrong on the API", async () => {
       expect.assertions(1);
       const passwordExpiryId = uuid();
-      fetch.doMockOnceIf(
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
         new RegExp(`/password-expiry/settings/${passwordExpiryId}\\.json`),
         mockApiResponseError(500, "Something wrong happened"),
       );
@@ -193,9 +204,13 @@ describe("PasswordExpiry model", () => {
     it("should throw an Error if something goes wrong when request the API", async () => {
       expect.assertions(1);
       const passwordExpiryId = uuid();
-      fetch.doMockOnceIf(new RegExp(`/password-expiry/settings/${passwordExpiryId}\\.json`), () => {
-        throw new Error("Something went wrong");
-      });
+      mockAuthenticatedApiRequest(
+        apiClientOptions,
+        new RegExp(`/password-expiry/settings/${passwordExpiryId}\\.json`),
+        () => {
+          throw new Error("Something went wrong");
+        },
+      );
 
       try {
         await model.delete(passwordExpiryId);
@@ -233,7 +248,9 @@ describe("PasswordExpiry model", () => {
       expect.assertions(1);
       const expectedDto = defaultPasswordExpirySettingsDtoFromApi();
       const expectedEntity = new PasswordExpirySettingsEntity(expectedDto);
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => mockApiResponse(expectedDto));
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
+        mockApiResponse(expectedDto),
+      );
 
       const result = await model.getOrFindOrDefault();
 
@@ -243,7 +260,7 @@ describe("PasswordExpiry model", () => {
     it("should return a default entity if the API returns an HTTP error", async () => {
       expect.assertions(1);
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () =>
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () =>
         mockApiResponseError(404, "Endpoint is not existing"),
       );
 
@@ -255,7 +272,7 @@ describe("PasswordExpiry model", () => {
     it("should return a default entity if something goes wrong on the API", async () => {
       expect.assertions(1);
       const expectedEntity = PasswordExpirySettingsEntity.createFromDefault();
-      fetch.doMockOnceIf(/password-expiry\/settings\.json/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /password-expiry\/settings\.json/, () => {
         throw new Error("Something went wrong");
       });
 

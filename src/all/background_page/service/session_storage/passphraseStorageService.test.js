@@ -43,7 +43,7 @@ describe("PassphraseStorageService", () => {
       await PassphraseStorageService.set(passphrase, -1);
 
       expect(spyOnStorageSet).toHaveBeenCalledTimes(1);
-      expect(spyOnStorageSet).toHaveBeenCalledWith({ passphrase: passphrase });
+      expect(spyOnStorageSet).toHaveBeenCalledWith({ passphrase: { passphrase, expires: null } });
 
       //Called 2 times: at init and during the ::set
       expect(spyOnAlarmClear).toHaveBeenCalledTimes(2);
@@ -70,7 +70,7 @@ describe("PassphraseStorageService", () => {
       await PassphraseStorageService.set(passphrase, 30);
 
       expect(spyOnStorageSet).toHaveBeenCalledTimes(1);
-      expect(spyOnStorageSet).toHaveBeenCalledWith({ passphrase: passphrase });
+      expect(spyOnStorageSet).toHaveBeenCalledWith({ passphrase: { passphrase, expires: expect.any(Number) } });
 
       //Called 2 times: at init and during the ::set
       expect(spyOnAlarmClear).toHaveBeenCalledTimes(2);

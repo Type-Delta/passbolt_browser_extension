@@ -17,6 +17,7 @@ import AccountEntity from "../../model/entity/account/accountEntity";
 import { defaultAccountDto } from "../../model/entity/account/accountEntity.test.data";
 import BuildApiClientOptionsService from "../account/buildApiClientOptionsService";
 import FindMetadataKeysService from "./findMetadataKeysService";
+import { mockAuthenticatedApiRequest } from "../../../../../test/mocks/mockApiResponse";
 import { mockApiResponseError } from "passbolt-styleguide/test/mocks/mockApiResponse";
 import PassboltApiFetchError from "passbolt-styleguide/src/shared/lib/Error/PassboltApiFetchError";
 import PassboltServiceUnavailableError from "passbolt-styleguide/src/shared/lib/Error/PassboltServiceUnavailableError";
@@ -116,7 +117,9 @@ describe("FindMetadataKeysApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new FindMetadataKeysService(apiClientOptions);
 
@@ -125,7 +128,7 @@ describe("FindMetadataKeysApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => {
         throw new Error("Service unavailable");
       });
 
@@ -219,7 +222,9 @@ describe("FindMetadataKeysApiService", () => {
 
     it("throws API error if the API encountered an issue", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => mockApiResponseError(500, "Something wrong happened!"));
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () =>
+        mockApiResponseError(500, "Something wrong happened!"),
+      );
 
       const service = new FindMetadataKeysService(apiClientOptions);
 
@@ -228,7 +233,7 @@ describe("FindMetadataKeysApiService", () => {
 
     it("throws service unavailable error if an error occurred but not from the API (by instance cloudflare)", async () => {
       expect.assertions(1);
-      fetch.doMockOnceIf(/metadata\/keys/, () => {
+      mockAuthenticatedApiRequest(apiClientOptions, /metadata\/keys/, () => {
         throw new Error("Service unavailable");
       });
 

@@ -47,6 +47,8 @@ gi
 ######################
 junit.xml
 *.vim
+# Independently checked-out and hash-verified UI source used by CI.
+/ui-source/
 
 # XCode + Swift project #
 #########################
@@ -104,3 +106,8 @@ playground.xcworkspace
 .build/
 
 # End of https://www.toptal.com/developers/gitignore/api/swift
+# Generated pinned styleguide tarball
+/vendor
+
+# Playwright CLI page state
+.playwright-cli/

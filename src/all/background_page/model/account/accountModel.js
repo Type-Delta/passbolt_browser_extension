@@ -16,6 +16,8 @@ import User from "../user";
 import DecryptPrivateKeyService from "../../service/crypto/decryptPrivateKeyService";
 import EncryptPrivateKeyService from "../../service/crypto/encryptPrivateKeyService";
 
+import SavedAccountRegistry from "../../service/account/savedAccountRegistry";
+
 class AccountModel {
   /**
    * Constructor
@@ -31,6 +33,18 @@ class AccountModel {
    * @throws {Error} if options are invalid or API error
    */
   async add(accountEntity) {
+    const state = await SavedAccountRegistry.read();
+    accountEntity = await SavedAccountRegistry.normalize(accountEntity);
+    if (state.active_account_id && state.active_account_id !== accountEntity.id) {
+      throw new Error("Use saved-account enrollment to add another account.");
+    }
+    accountEntity = await SavedAccountRegistry.save(accountEntity);
+    await this.activate(accountEntity);
+    await SavedAccountRegistry.save(accountEntity, true);
+  }
+
+  /** Project the selected encrypted account into the legacy foreground keyring. */
+  async activate(accountEntity) {
     const user = User.getInstance();
     user.settings.setSecurityToken(accountEntity.securityToken.toDto());
     user.settings.setDomain(accountEntity.domain);
@@ -50,6 +64,9 @@ class AccountModel {
    */
   async changeSecurityToken(securityTokenEntity) {
     await User.getInstance().updateSecurityToken(securityTokenEntity.toDto());
+    const account = await SavedAccountRegistry.active();
+    account.securityToken = securityTokenEntity;
+    await SavedAccountRegistry.save(account);
   }
 
   /**
@@ -80,6 +97,9 @@ class AccountModel {
       throw new Error("The private key to import doesn't match the current private key.");
     }
     await this.keyring.importPrivate(newPrivateArmoredKey);
+    const account = await SavedAccountRegistry.active();
+    account.userPrivateArmoredKey = newPrivateArmoredKey;
+    await SavedAccountRegistry.save(account);
   }
 }
 

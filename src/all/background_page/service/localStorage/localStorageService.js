@@ -55,12 +55,11 @@ class LocalStorageService {
 
     SiteSettingsRuntimeCache.flushAll();
     /*
-     * Non-blocking as before, but rejections are captured through Promise.allSettled
-     * so a failing flush never leaks as an unhandled promise rejection. The handler is silent
-     * (see logFlushFailures) and never rethrows, so other journeys are not impacted
+     * Await every flush so account transitions cannot finish before old-account cleanup.
+     * A failing flush is still captured and logged without preventing the remaining cleanup.
      */
-    // eslint-disable-next-line promise/catch-or-return
-    Promise.allSettled([
+
+    await Promise.allSettled([
       ResourceLocalStorage.flush(),
       FolderLocalStorage.flush(),
       UserLocalStorage.flush(),

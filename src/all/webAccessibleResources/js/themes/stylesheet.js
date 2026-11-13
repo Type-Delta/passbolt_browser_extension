@@ -33,6 +33,8 @@
     async init() {
       if (await this.isThemeDefined()) {
         this.theme = await this.getThemeFromLocalStorage();
+      } else if (this.isOnboarding()) {
+        this.theme = "default";
       } else {
         this.mediaQueryPreferColor = window.matchMedia("(prefers-color-scheme: dark)");
         this.setThemeFromOsPreference(this.mediaQueryPreferColor);
@@ -51,9 +53,21 @@
         return;
       }
 
-      const cssFile = cssInfoTag.dataset.file;
+      const cssFile = this.isOnboarding() ? "ext_authentication.min.css" : cssInfoTag.dataset.file;
 
       this.getLinkTag().setAttribute("href", `/webAccessibleResources/css/themes/${this.theme}/${cssFile}`);
+    }
+
+    isOnboarding() {
+      if (window.top !== window.self) {
+        return false;
+      }
+      const url = new URL(window.location.href);
+      return (
+        url.href.split(/[?#]/)[0] === chrome.runtime.getURL("/webAccessibleResources/quickaccess.html") &&
+        url.searchParams.get("uiMode") === "tab" &&
+        url.searchParams.get("feature") === "add-account"
+      );
     }
 
     /**

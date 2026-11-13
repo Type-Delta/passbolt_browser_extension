@@ -74,7 +74,7 @@ export default class CopyToClipboardService {
   async flushTemporaryContentIfAny() {
     const hasTemporaryContent = Boolean(await browser.alarms.get(CopyToClipboardService.ALARM_NAME));
     if (hasTemporaryContent) {
-      this.flushTemporaryContent();
+      await this.flushTemporaryContent();
     }
   }
 
